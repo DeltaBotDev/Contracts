@@ -1,0 +1,25 @@
+[package]
+name = "grid"
+version = "0.0.1"
+authors = ["zero@ref.finance"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = "4.0.0-pre.8"
+uint = { version = "0.9.3", default-features = false }
+near-contract-standards = "4.0.0-pre.8"
+serde_json = "1.0.85"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+[workspace]
+members = []
