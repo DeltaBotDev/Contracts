@@ -48,12 +48,14 @@ pub struct GridBot {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
-    pub token_sell: U256C,
-    pub token_buy: U256C,
-    pub amount_sell: U256C,
-    pub amount_buy: U256C,
-    pub fill_buy_or_sell: u8,
-    pub filled: U256C,
+    /// order_id: botId-0/1-level
+    pub order_id: String,
+    pub token_sell: AccountId,
+    pub token_buy: AccountId,
+    pub amount_sell: U128C,
+    pub amount_buy: U128C,
+    pub fill_buy_or_sell: bool,
+    pub filled: U128C,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -68,4 +70,18 @@ pub struct Pair {
     pub pair_id: U128C,
     pub base_token: AccountId,
     pub quote_token: AccountId,
+}
+
+impl Clone for Order {
+    fn clone(&self) -> Self {
+        Order {
+            order_id: self.order_id.clone(),
+            token_sell: self.token_sell.clone(),
+            token_buy: self.token_buy.clone(),
+            amount_sell: self.amount_sell.clone(),
+            amount_buy: self.amount_buy.clone(),
+            fill_buy_or_sell: self.fill_buy_or_sell,
+            filled: self.filled.clone(),
+        }
+    }
 }

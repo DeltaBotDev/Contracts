@@ -17,6 +17,9 @@ mod orderbook;
 mod storage;
 mod grid_bot_internal;
 mod token_receive;
+mod orderbook_internal;
+mod grid_bot_views;
+mod orderbook_views;
 
 pub use crate::constants::*;
 pub use crate::errors::*;

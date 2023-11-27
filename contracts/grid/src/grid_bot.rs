@@ -18,10 +18,12 @@ impl GridBotContract {
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
 
         let new_grid_bot = GridBot {user: env::predecessor_account_id(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
-            grid_count, grid_rate, grid_offset, first_base_amount, first_quote_amount, last_base_amount,
+            grid_count: grid_count.clone(), grid_rate, grid_offset, first_base_amount, first_quote_amount, last_base_amount,
             last_quote_amount, fill_base_or_quote, trigger_price, take_profit_price, stop_loss_price, valid_until_time,
         };
         self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
+        // initial orders space
+        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone() as usize), Vec::with_capacity(grid_count.clone() as usize)));
     }
 
     pub fn close_bot(&mut self, bot_id: String) {
