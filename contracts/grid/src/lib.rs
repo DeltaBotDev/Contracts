@@ -44,11 +44,12 @@ pub struct GridBotContract {
     /// start from 0, used from 1
     pub next_bot_id: u128,
     /// oracle_price_map[pair_id] = OraclePrice
-    pub oracle_price_map: HashMap<U128C, OraclePrice>,
-    /// start from 0, used from 1
-    pub next_pair_id: u128,
+    pub oracle_price_map: HashMap<String, OraclePrice>,
+    // /// start from 0, used from 1
+    // pub next_pair_id: u128,
     /// pair_map[base_token_addr+":"+quote_token_addr] = Pair
     pub pair_map: HashMap<String, Pair>,
+    // pub pair_array: Vec<Pair>,
     pub token_map: HashMap<AccountId, U128C>,
     pub user_balances_map: HashMap<AccountId, HashMap<AccountId, U128C>>,
     pub user_locked_balances_map: HashMap<AccountId, HashMap<AccountId, U128C>>,
@@ -67,8 +68,9 @@ impl GridBotContract {
             order_map: Default::default(),
             next_bot_id: 0,
             oracle_price_map: Default::default(),
-            next_pair_id: 0,
+            // next_pair_id: 0,
             pair_map: Default::default(),
+            // pair_array: vec![],
             token_map: Default::default(),
             user_balances_map: Default::default(),
             user_locked_balances_map: Default::default(),

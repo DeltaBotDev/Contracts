@@ -5,25 +5,27 @@ use crate::entity::GridType;
 #[near_bindgen]
 impl GridBotContract {
     #[payable]
-    pub fn create_bot(&mut self, name:String, pair_id: U128C, slippage: u16, grid_type: GridType,
-                      grid_rate: u16, grid_offset: U256C, first_base_amount: U256C, first_quote_amount: U256C,
-                      last_base_amount: U256C, last_quote_amount: U256C, fill_base_or_quote: u8, grid_count: u16,
+    pub fn create_bot(&mut self, name:String, pair_id: String, slippage: u16, grid_type: GridType,
+                      grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
+                      last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U256C, take_profit_price: U256C, stop_loss_price: U256C, valid_until_time: u64,
                       entry_price: U256C) {
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
-        assert!(self.internal_check_oracle_price(entry_price, pair_id, slippage) , "ORACLE_PRICE_EXCEPTION");
+        assert!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , "ORACLE_PRICE_EXCEPTION");
 
         // TODO Get Asset
 
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
 
         let new_grid_bot = GridBot {user: env::predecessor_account_id(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
-            grid_count: grid_count.clone(), grid_rate, grid_offset, first_base_amount, first_quote_amount, last_base_amount,
-            last_quote_amount, fill_base_or_quote, trigger_price, take_profit_price, stop_loss_price, valid_until_time,
+            grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
+            first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
+            trigger_price, take_profit_price, stop_loss_price, valid_until_time,
         };
         self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
         // initial orders space
-        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone() as usize), Vec::with_capacity(grid_count.clone() as usize)));
+        let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
+        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
     }
 
     pub fn close_bot(&mut self, bot_id: String) {
@@ -89,11 +91,11 @@ impl GridBotContract {
         let pair_key = format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
         assert!(!self.pair_map.contains_key(&pair_key), "PAIR_EXIST");
         let pair = Pair{
-            pair_id: U128C::from(self.internal_get_and_use_next_pair_id()),
+            // pair_id: U128C::from(self.internal_get_and_use_next_pair_id()),
             base_token: base_token.clone(),
             quote_token: quote_token.clone(),
         };
-        self.pair_map.insert(pair_key, pair);
+        self.pair_map.insert(pair_key, pair.clone());
         if !self.token_map.contains_key(&(base_token.clone())) {
             self.token_map.insert(base_token.clone(), U128C::from(0));
         }
