@@ -20,6 +20,56 @@ impl GridBotContract {
         GridBotContract::private_place_order(order, orders, level.clone() as usize);
     }
 
+    pub fn internal_check_order_match(marker_order: Order, taker_order: Order) {
+        assert_eq!(marker_order.token_buy, taker_order.token_sell, "VALID_ORDER_TOKEN");
+        assert_eq!(marker_order.token_sell, taker_order.token_buy, "VALID_ORDER_TOKEN");
+        assert_ne!(taker_order.token_sell, taker_order.token_buy, "VALID_ORDER_TOKEN");
+        assert_ne!(taker_order.amount_sell, U128C::from(0), "VALID_ORDER_AMOUNT");
+        assert_ne!(taker_order.amount_buy, U128C::from(0), "VALID_ORDER_AMOUNT");
+
+        assert!(taker_order.amount_sell/taker_order.amount_buy <= marker_order.amount_sell/marker_order.amount_buy, "VALID_PRICE");
+    }
+
+    pub fn internal_calculate_matching(marker_order: Order, taker_order: Order) -> (U128C, U128C) {
+        // calculate marker max amount
+        // let mut max_fill_buy = U128C::from(0);
+        // let mut max_fill_sell = U128C::from(0);
+        let max_fill_buy;
+        let max_fill_sell;
+        if marker_order.fill_buy_or_sell {
+            max_fill_buy = marker_order.amount_buy - marker_order.filled;
+            max_fill_sell = marker_order.amount_sell / marker_order.amount_buy * max_fill_buy;
+        } else {
+            max_fill_sell = marker_order.amount_sell - marker_order.filled;
+            max_fill_buy = marker_order.amount_buy / marker_order.amount_sell * max_fill_sell;
+        }
+        // calculate matching amount
+        // let mut taker_buy = U128C::from(0);
+        // let mut taker_sell = U128C::from(0);
+        let taker_buy;
+        let taker_sell;
+        if taker_order.fill_buy_or_sell {
+            if taker_order.amount_buy >= max_fill_sell {
+                // taker all maker
+                taker_buy = max_fill_sell;
+                taker_sell = max_fill_buy;
+            } else {
+                taker_buy = taker_order.amount_buy;
+                taker_sell = max_fill_buy / max_fill_sell * taker_buy;
+            }
+        } else {
+            if taker_order.amount_sell >= max_fill_buy {
+                // taker all maker
+                taker_buy = max_fill_sell;
+                taker_sell = max_fill_buy;
+            } else {
+                taker_sell = taker_order.amount_sell;
+                taker_buy = max_fill_sell / max_fill_buy * taker_sell;
+            }
+        }
+        return (taker_sell, taker_buy);
+    }
+
     fn private_place_order(order: Order, placed_orders: &mut Vec<Order>, level: usize) {
         let placed_order = &mut placed_orders[level.clone()];
         if placed_order.order_id == "" {
@@ -30,4 +80,5 @@ impl GridBotContract {
         placed_order.amount_sell += order.amount_sell;
         placed_order.amount_buy += order.amount_buy;
     }
+
 }

@@ -85,6 +85,7 @@ impl GridBotContract {
 
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        assert_ne!(base_token, quote_token, "VALID_TOKEN");
         let pair_key = format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
         assert!(!self.pair_map.contains_key(&pair_key), "PAIR_EXIST");
         let pair = Pair{
