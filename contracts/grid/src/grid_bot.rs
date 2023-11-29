@@ -12,20 +12,35 @@ impl GridBotContract {
                       entry_price: U256C) {
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
         assert!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , "ORACLE_PRICE_EXCEPTION");
+        assert!(self.pair_map.contains_key(&pair_id), "INVALID_PAIR_ID");
+        let pair = self.pair_map.get(&pair_id).unwrap().clone();
+        let user = env::predecessor_account_id();
 
-        // TODO Get Asset
+        // calculate all assets
+        let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount.clone(), last_base_amount.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
+                                                       grid_type.clone(), grid_rate.clone(), grid_offset.clone(), fill_base_or_quote.clone());
+        // check balance
+        assert!(self.internal_get_balance(user.clone(), pair.base_token.clone()) >= base_amount_sell, "LESS_BASE_TOKEN");
+        assert!(self.internal_get_balance(user.clone(), pair.quote_token.clone()) >= quote_amount_buy, "LESS_QUOTE_TOKEN");
 
+        // transfer assets
+        self.internal_transfer_assets_to_lock(user.clone(), pair.base_token.clone(), base_amount_sell);
+        self.internal_transfer_assets_to_lock(user.clone(), pair.quote_token.clone(), quote_amount_buy);
+
+        // create bot id
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
+        // initial orders space
+        let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
+        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
 
-        let new_grid_bot = GridBot {user: env::predecessor_account_id(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
+        // create bot
+        let new_grid_bot = GridBot {user: user.clone(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
             grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
             first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
             trigger_price, take_profit_price, stop_loss_price, valid_until_time,
         };
+        // insert bot
         self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
-        // initial orders space
-        let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
-        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
     }
 
     pub fn close_bot(&mut self, bot_id: String) {
@@ -88,7 +103,7 @@ impl GridBotContract {
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
         assert_ne!(base_token, quote_token, "VALID_TOKEN");
-        let pair_key = format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
+        let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
         assert!(!self.pair_map.contains_key(&pair_key), "PAIR_EXIST");
         let pair = Pair{
             // pair_id: U128C::from(self.internal_get_and_use_next_pair_id()),
