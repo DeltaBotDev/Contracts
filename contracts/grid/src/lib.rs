@@ -16,11 +16,12 @@ mod grid_bot;
 mod orderbook;
 mod storage;
 mod grid_bot_internal;
-mod token_receive;
+mod token;
 mod orderbook_internal;
 mod grid_bot_views;
 mod orderbook_views;
 mod big_decimal;
+mod events;
 
 pub use crate::constants::*;
 pub use crate::errors::*;

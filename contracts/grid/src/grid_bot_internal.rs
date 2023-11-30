@@ -1,12 +1,27 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::env;
+use near_sdk::{env, Gas, Promise};
+use serde_json::json;
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR, U256C};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
+use crate::events::emit;
 
 impl GridBotContract {
+    // pub fn internal_transfer_token(&self, receiver_id: AccountId, amount: Balance, token_contract_id: AccountId) {
+    //     Promise::new(token_contract_id)
+    //         .function_call(
+    //             "ft_transfer".to_string(),
+    //             json!({
+    //                 "receiver_id": receiver_id,
+    //                 "amount": amount
+    //             }).to_string().into_bytes(),
+    //             1_000_000_000_000_000_000_000, // 需要附加的GAS量
+    //             0, // 附加的NEAR数量，如果是转账 NEP-141 代币，则为 0
+    //         );
+    // }
+
     pub fn internal_get_next_bot_id(&self) -> u128 {
         return self.next_bot_id;
     }
@@ -19,6 +34,12 @@ impl GridBotContract {
         self.next_bot_id += 1;
 
         return next_id;
+    }
+
+    pub fn internal_get_user_balance(&self, user: &AccountId, token: &AccountId) -> U128C {
+        return self.user_balances_map.get(user)
+            .and_then(|balances| balances.get(token).cloned())
+            .unwrap_or(U128C::from(0));
     }
 
     // pub fn internal_get_and_use_next_pair_id(&mut self) -> u128 {
@@ -151,21 +172,6 @@ impl GridBotContract {
         return format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
     }
 
-    pub fn internal_get_balance(&self, user: AccountId, token: AccountId) -> U128C {
-        // if !self.user_balances_map.contains_key(&user) {
-        //     return U128C::from(0);
-        // }
-        // let user_balances = self.user_balances_map.get(&user).unwrap();
-        // if !user_balances.contains_key(&token) {
-        //     return U128C::from(0);
-        // }
-        // let balance = user_balances.get(&token).unwrap();
-        // return balance.clone();
-        return self.user_balances_map.get(&user)
-            .and_then(|balances| balances.get(&token).cloned())
-            .unwrap_or(U128C::from(0));
-    }
-
     pub fn internal_transfer_assets_to_lock(&mut self, user: AccountId, token: AccountId, amount: U128C) {
         if amount == U128C::from(0) {
             return;
@@ -177,6 +183,66 @@ impl GridBotContract {
         let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
         let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
         *locked_balance += amount;
+    }
+
+    pub fn internal_transfer_assets_to_unlock(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        if amount == 0 {
+            return;
+        }
+        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        *balance += U128C::from(amount.clone());
+
+        let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
+        *locked_balance -= U128C::from(amount);
+    }
+
+    pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        if amount == 0 {
+            return;
+        }
+        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        *balance -= U128C::from(amount);
+    }
+
+    pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        if amount == 0 {
+            return;
+        }
+        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        *balance += U128C::from(amount);
+    }
+
+    pub fn internal_harvest_revenue(&mut self, bot: &GridBot, pair: &Pair, user: &AccountId) -> (AccountId, Balance) {
+        let revenue_token = if bot.fill_base_or_quote {
+            pair.base_token.clone()
+        } else {
+            pair.quote_token.clone()
+        };
+        let revenue = bot.revenue.clone();
+        self.internal_increase_asset(&user, &revenue_token, revenue.clone());
+        // sign to 0
+        self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = 0;
+        return (revenue_token, revenue);
+    }
+
+    pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U128C) {
+        let balance = self.token_map.get_mut(token).unwrap();
+        *balance += *amount;
+    }
+
+    pub fn internal_reduce_global_asset(&mut self, token: &AccountId, amount: &U128C) {
+        let balance = self.token_map.get_mut(token).unwrap();
+        *balance -= *amount;
+    }
+
+    pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        self.internal_ft_transfer(&user, &token, amount.clone());
+        emit::withdraw_failed(&user, amount.clone(), &token);
+        self.internal_reduce_global_asset(&token, &(U128C::from(amount)))
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

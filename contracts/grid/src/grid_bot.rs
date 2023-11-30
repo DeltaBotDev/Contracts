@@ -1,6 +1,9 @@
+use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use crate::*;
-use near_sdk::{near_bindgen};
+use near_sdk::{Gas, near_bindgen, Promise};
+use serde_json::json;
 use crate::entity::GridType;
+use crate::events::emit;
 
 #[near_bindgen]
 impl GridBotContract {
@@ -20,8 +23,8 @@ impl GridBotContract {
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount.clone(), last_base_amount.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
                                                        grid_type.clone(), grid_rate.clone(), grid_offset.clone(), fill_base_or_quote.clone());
         // check balance
-        assert!(self.internal_get_balance(user.clone(), pair.base_token.clone()) >= base_amount_sell, "LESS_BASE_TOKEN");
-        assert!(self.internal_get_balance(user.clone(), pair.quote_token.clone()) >= quote_amount_buy, "LESS_QUOTE_TOKEN");
+        assert!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, "LESS_BASE_TOKEN");
+        assert!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, "LESS_QUOTE_TOKEN");
 
         // transfer assets
         self.internal_transfer_assets_to_lock(user.clone(), pair.base_token.clone(), base_amount_sell);
@@ -46,15 +49,31 @@ impl GridBotContract {
 
     pub fn close_bot(&mut self, bot_id: String) {
         assert!(self.bot_map.contains_key(&bot_id), "BOT_NOT_EXIST");
-        let bot = self.bot_map.get_mut(&bot_id).unwrap();
+        let bot = self.bot_map.get(&bot_id).unwrap().clone();
+        let user = env::predecessor_account_id();
+        let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         // check permission
-        assert_eq!(bot.user, env::predecessor_account_id(), "NO_PERMISSION");
-        bot.closed = true;
-        // TODO Return Asset
+        assert_eq!(bot.user, user, "NO_PERMISSION");
+
+        // sign closed
+        self.bot_map.get_mut(&bot_id).unwrap().closed = true;
+
+        // unlock token
+        self.internal_transfer_assets_to_unlock(&user, &(pair.base_token), bot.total_base_amount.clone());
+        self.internal_transfer_assets_to_unlock(&user, &(pair.quote_token), bot.total_quote_amount.clone());
+        // harvest revenue
+        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &user);
+
+        // withdraw token
+        self.internal_withdraw(&user, &(pair.base_token), bot.total_base_amount.clone());
+        self.internal_withdraw(&user, &(pair.quote_token), bot.total_quote_amount.clone());
+        self.internal_withdraw(&user, &revenue_token, revenue);
     }
 
     pub fn withdraw(&mut self, token: AccountId) {
-
+        let user = env::predecessor_account_id();
+        let balance = self.internal_get_user_balance(&user, &token);
+        self.internal_withdraw(&user, &token, balance.as_u128());
     }
 
     pub fn take_orders(&mut self, take_order: Order, maker_orders: Vec<Order>, slippage: u16) {
@@ -63,7 +82,15 @@ impl GridBotContract {
     }
 
     pub fn claim(&mut self, bot_id: String) {
-
+        assert!(self.bot_map.contains_key(&bot_id), "BOT_NOT_EXIST");
+        let bot = self.bot_map.get(&bot_id).unwrap().clone();
+        let user = env::predecessor_account_id();
+        let pair = self.pair_map.get(&(bot.pair_id)).unwrap().clone();
+        // check permission
+        assert_eq!(bot.user, user, "NO_PERMISSION");
+        // harvest revenue
+        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &user);
+        self.internal_withdraw(&user, &revenue_token, revenue);
     }
 
     pub fn trigger_bot(&mut self, bot_id: String) {
@@ -83,7 +110,14 @@ impl GridBotContract {
 
     pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
-
+        // Promise::new(token)
+        //     .function_call(
+        //         "ft_balance_of".to_string(),
+        //         json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
+        //         0,
+        //         Gas(0),
+        //     )
+        //     .then()
     }
 
     pub fn pause(&mut self) {

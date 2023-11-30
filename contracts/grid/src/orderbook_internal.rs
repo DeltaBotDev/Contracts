@@ -45,12 +45,12 @@ impl GridBotContract {
         if !in_orderbook {
             self.internal_place_order(bot_id.clone(), maker_order.clone(), forward_or_reverse.clone(), level.clone());
         }
-        // place reverse order
-        let reverse_order = GridBotContract::internal_get_reserve_order(maker_order.clone(), bot.clone(), level.clone());
-        self.internal_place_order(bot_id.clone(), reverse_order.clone(), !forward_or_reverse.clone(), level.clone());
+        // place opposite order
+        let opposite_order = GridBotContract::internal_get_reserve_order(maker_order.clone(), bot.clone(), level.clone());
+        self.internal_place_order(bot_id.clone(), opposite_order.clone(), !forward_or_reverse.clone(), level.clone());
 
         // calculate bot's revenue
-        let revenue = self.internal_calculate_bot_revenue(bot.clone(), pair.clone(), forward_or_reverse.clone(), maker_order, current_filled.as_u128(), level.clone());
+        let revenue = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order, opposite_order, current_filled.as_u128());
         // add revenue
         let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
         bot_mut.revenue += revenue;
@@ -58,8 +58,12 @@ impl GridBotContract {
         GridBotContract::internal_update_bot_asset(bot_mut, pair, taker_order.token_buy.clone(), taker_order.token_sell.clone(), taker_buy.as_u128(), taker_sell.as_u128());
 
         // bot asset transfer
-        self.internal_add_bot_assets(bot.user.clone(), taker_order.token_sell, taker_sell);
-        self.internal_reduce_bot_assets(bot.user.clone(), taker_order.token_buy, taker_buy);
+        self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
+        self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
+
+        // update global asset
+        self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
+        self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
 
         return (taker_sell, taker_buy);
     }
@@ -74,22 +78,22 @@ impl GridBotContract {
         }
     }
 
-    pub fn internal_add_bot_assets(&mut self, user: AccountId, token: AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
+    pub fn internal_increase_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
+        if *amount == U128C::from(0) {
             return;
         }
         let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
         let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance += amount;
+        *locked_balance += *amount;
     }
 
-    pub fn internal_reduce_bot_assets(&mut self, user: AccountId, token: AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
+    pub fn internal_reduce_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
+        if *amount == U128C::from(0) {
             return;
         }
         let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
         let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance -= amount;
+        *locked_balance -= *amount;
     }
 
     pub fn internal_check_order_match(maker_order: Order, taker_order: Order) {
@@ -191,22 +195,22 @@ impl GridBotContract {
         return reverse_order;
     }
 
-    pub fn internal_calculate_bot_revenue(&self, bot: GridBot, pair: Pair, forward_or_reverse: bool, order: Order, current_filled: Balance, level: usize) -> Balance {
+    pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: Balance) -> Balance {
         if forward_or_reverse {
             return 0;
         }
-        let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
-        if forward_order.fill_buy_or_sell {
+        // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
+        if opposite_order.fill_buy_or_sell {
             // current_filled token is forward_order's buy token
             // revenue token is forward_order's sell token
-            let forward_sold = current_filled.clone() * forward_order.amount_sell.as_u128() / forward_order.amount_buy.as_u128();
+            let forward_sold = current_filled.clone() * opposite_order.amount_sell.as_u128() / opposite_order.amount_buy.as_u128();
             let reverse_bought = current_filled.clone() * order.amount_buy.as_u128() / order.amount_sell.as_u128();
             assert!(reverse_bought >= forward_sold, "VALID_REVENUE");
             reverse_bought - forward_sold
         } else {
             // current_filled token is forward_order's sell token
             // revenue token is forward_order's buy token
-            let forward_bought = current_filled.clone() * forward_order.amount_buy.as_u128() / forward_order.amount_sell.as_u128();
+            let forward_bought = current_filled.clone() * opposite_order.amount_buy.as_u128() / opposite_order.amount_sell.as_u128();
             let reverse_sold = current_filled.clone() * order.amount_sell.as_u128() / order.amount_buy.as_u128();
             assert!(forward_bought >= reverse_sold, "VALID_REVENUE");
             forward_bought - reverse_sold
