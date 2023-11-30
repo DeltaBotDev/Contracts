@@ -34,7 +34,7 @@ impl GridBotContract {
         return orders;
     }
 
-    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: Order) -> (U128C, U128C) {
+    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: Order) -> (U128C, U128C, U128C) {
         let (maker_order, _) = self.query_order(bot_id, forward_or_reverse, level);
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());

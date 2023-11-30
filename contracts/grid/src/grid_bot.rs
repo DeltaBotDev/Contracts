@@ -38,6 +38,7 @@ impl GridBotContract {
             grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
             first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
             trigger_price, take_profit_price, stop_loss_price, valid_until_time,
+            total_quote_amount: quote_amount_buy.as_u128(), total_base_amount: base_amount_sell.as_u128(), revenue: 0
         };
         // insert bot
         self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
