@@ -22,6 +22,7 @@ mod grid_bot_views;
 mod orderbook_views;
 mod big_decimal;
 mod events;
+mod grid_bot_private;
 
 pub use crate::constants::*;
 pub use crate::errors::*;

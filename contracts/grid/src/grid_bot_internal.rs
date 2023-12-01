@@ -1,6 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
 use near_sdk::{env, Gas, Promise};
+use near_sdk::json_types::U128;
 use serde_json::json;
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR, U256C};
 use crate::big_decimal::BigDecimal;
@@ -52,22 +53,60 @@ impl GridBotContract {
     //     return next_id;
     // }
 
-    pub fn internal_check_oracle_price(&self, entry_price: U256C, pair_id: String, slippage: u16) -> bool {
+    pub fn internal_init_bot_status(&self, bot: &mut GridBot, entry_price: U128C) {
+        if bot.trigger_price == U128C::from(0) {
+            bot.active = true;
+            return;
+        }
+        if entry_price >= bot.trigger_price {
+            bot.trigger_price_above_or_below = false;
+        } else {
+            bot.trigger_price_above_or_below = true;
+        }
+    }
+
+    pub fn internal_get_oracle_price(&self, pair_id: String) -> U128C {
+        if !self.oracle_price_map.contains_key(&pair_id) {
+            return U128C::from(0);
+        }
+        let price_info = self.oracle_price_map.get(&pair_id).unwrap();
+        if price_info.valid_timestamp < env::block_timestamp() {
+            // oracle price expired
+            return U128C::from(0);
+        }
+        return price_info.price;
+    }
+
+    pub fn internal_check_oracle_price(&self, entry_price: U128C, pair_id: String, slippage: u16) -> bool {
         if !self.oracle_price_map.contains_key(&pair_id) {
             return false;
         }
         let price_info = self.oracle_price_map.get(&pair_id).unwrap();
         if price_info.valid_timestamp < env::block_timestamp() {
             // oracle price expired
-            return false
+            return false;
         }
 
         let recorded_price = price_info.price;
         if entry_price >= recorded_price {
-            return (entry_price - recorded_price) / entry_price * SLIPPAGE_DENOMINATOR <= U256C::from(slippage);
+            return (entry_price - recorded_price) / entry_price * SLIPPAGE_DENOMINATOR <= U128C::from(slippage);
         } else {
-            return (recorded_price - entry_price) / entry_price * SLIPPAGE_DENOMINATOR <= U256C::from(slippage);
+            return (recorded_price - entry_price) / entry_price * SLIPPAGE_DENOMINATOR <= U128C::from(slippage);
         }
+    }
+
+    pub fn internal_check_bot_close_permission(&self, user: &AccountId, bot: &GridBot) -> bool {
+        if user == &(bot.user) {
+            return true;
+        }
+        let oracle_price = self.internal_get_oracle_price(bot.pair_id.clone());
+        if oracle_price >= bot.take_profit_price {
+            return true;
+        }
+        if oracle_price <= bot.stop_loss_price {
+            return true;
+        }
+        return false;
     }
 
     pub fn internal_get_first_forward_order(grid_bot: GridBot, pair: Pair, level: usize) -> Order {
@@ -216,6 +255,14 @@ impl GridBotContract {
         *balance += U128C::from(amount);
     }
 
+    pub fn internal_remove_revenue_from_bot(&mut self, bot: &GridBot) {
+        if bot.fill_base_or_quote {
+            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
+        } else {
+            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
+        }
+    }
+
     pub fn internal_harvest_revenue(&mut self, bot: &GridBot, pair: &Pair, user: &AccountId) -> (AccountId, Balance) {
         let revenue_token = if bot.fill_base_or_quote {
             pair.base_token.clone()
@@ -223,6 +270,9 @@ impl GridBotContract {
             pair.quote_token.clone()
         };
         let revenue = bot.revenue.clone();
+        // transfer out from bot asset
+        self.internal_remove_revenue_from_bot(&bot);
+        // transfer to available asset
         self.internal_increase_asset(&user, &revenue_token, revenue.clone());
         // sign to 0
         self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = 0;
@@ -241,8 +291,7 @@ impl GridBotContract {
 
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
         self.internal_ft_transfer(&user, &token, amount.clone());
-        emit::withdraw_failed(&user, amount.clone(), &token);
-        self.internal_reduce_global_asset(&token, &(U128C::from(amount)))
+        emit::withdraw_started(&user, amount.clone(), &token);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

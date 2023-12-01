@@ -21,6 +21,7 @@ pub enum GridType {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct GridBot {
+    pub active: bool,
     pub user: AccountId,
     pub bot_id: String,
     pub closed: bool,
@@ -38,11 +39,14 @@ pub struct GridBot {
     pub last_quote_amount: U128C,
     pub fill_base_or_quote: bool,
     /// real_trigger_price = trigger_price / 10^18
-    pub trigger_price: U256C,
+    pub trigger_price: U128C,
+    /// eg: trigger_price=100, current_price=50, then trigger_price_above_or_below = true
+    /// eg: trigger_price=100, current_price=200, then trigger_price_above_or_below = false
+    pub trigger_price_above_or_below: bool,
     /// real_take_profit_price = take_profit_price / 10^18
-    pub take_profit_price: U256C,
+    pub take_profit_price: U128C,
     /// real_stop_loss_price = stop_loss_price / 10^18
-    pub stop_loss_price: U256C,
+    pub stop_loss_price: U128C,
     pub valid_until_time: u64,
     pub total_quote_amount: Balance,
     pub total_base_amount: Balance,
@@ -52,6 +56,7 @@ pub struct GridBot {
 impl Clone for GridBot {
     fn clone(&self) -> Self {
         GridBot {
+            active: self.active.clone(),
             user: self.user.clone(),
             bot_id: self.bot_id.clone(),
             closed: self.closed.clone(),
@@ -68,6 +73,7 @@ impl Clone for GridBot {
             last_quote_amount: self.last_quote_amount.clone(),
             fill_base_or_quote: self.fill_base_or_quote.clone(),
             trigger_price: self.trigger_price.clone(),
+            trigger_price_above_or_below: self.trigger_price_above_or_below.clone(),
             take_profit_price: self.take_profit_price.clone(),
             stop_loss_price: self.stop_loss_price.clone(),
             valid_until_time: self.valid_until_time.clone(),
@@ -106,11 +112,29 @@ impl Clone for Order {
     }
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OrderKeyInfo {
+    pub bot_id: String,
+    pub forward_or_reverse: bool,
+    pub level: usize,
+}
+
+impl Clone for OrderKeyInfo {
+    fn clone(&self) -> Self {
+        OrderKeyInfo {
+            bot_id: self.bot_id.clone(),
+            forward_or_reverse: self.forward_or_reverse.clone(),
+            level: self.level.clone(),
+        }
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OraclePrice {
     pub valid_timestamp: u64,
     pub pair_id: U128C,
-    pub price: U256C,
+    pub price: U128C,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]

@@ -10,6 +10,7 @@ impl GridBotContract {
         assert!(self.bot_map.contains_key(&bot_id), "VALID_BOT_ID");
         let bot = self.bot_map.get(&bot_id).unwrap();
         assert!(!(bot.closed.clone()), "BOT_CLOSED");
+        assert!(bot.active.clone(), "BOT_DISABLE");
         assert!(self.pair_map.contains_key(&(bot.pair_id.clone())), "VALID_PAIR_ID");
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse { &bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &bot_orders[REVERSE_ORDERS_INDEX.clone()] };
@@ -34,7 +35,7 @@ impl GridBotContract {
         return orders;
     }
 
-    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: Order) -> (U128C, U128C, U128C) {
+    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C, U128C) {
         let (maker_order, _) = self.query_order(bot_id, forward_or_reverse, level);
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());

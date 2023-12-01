@@ -30,7 +30,7 @@ impl GridBotContract {
         GridBotContract::private_place_order(order, orders, level.clone());
     }
 
-    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: Order) -> (U128C, U128C) {
+    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         let (mut maker_order, in_orderbook) = self.query_order(bot_id.clone(), forward_or_reverse, level);
@@ -60,10 +60,6 @@ impl GridBotContract {
         // bot asset transfer
         self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
         self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
-
-        // update global asset
-        self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
-        self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
 
         return (taker_sell, taker_buy);
     }

@@ -80,6 +80,7 @@ impl ExtSelf for GridBotContract {
             // reduce asset
             self.internal_reduce_asset(&account_id, &token_id, amount.0);
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
+            self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
         }
         promise_success
     }
