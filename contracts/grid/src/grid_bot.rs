@@ -1,9 +1,11 @@
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use crate::*;
-use near_sdk::{Gas, near_bindgen, Promise};
+use near_sdk::{Gas, near_bindgen, Promise, PromiseError};
 use serde_json::json;
 use crate::entity::{GridType, OrderKeyInfo};
 use crate::events::emit;
+use near_sdk::ext_contract;
+use crate::token::ext_self;
 
 #[near_bindgen]
 impl GridBotContract {
@@ -130,18 +132,19 @@ impl GridBotContract {
 
     pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
-        // Promise::new(token)
-        //     .function_call(
-        //         "ft_balance_of".to_string(),
-        //         json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
-        //         0,
-        //         Gas(0),
-        //     )
-        //     .then(
-        //         self::ext(env::current_account_id())
-        //             .with_static_gas(Gas(10_000_000_000_000))
-        //             .withdraw_unowned_asset_callback()
-        //     ).into()
+        Promise::new(token.clone())
+            .function_call(
+                "ft_balance_of".to_string(),
+                json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
+                0,
+                Gas(0),
+            )
+            .then(
+                ext_self::after_ft_balance_of(env::current_account_id(),
+                                              token.clone(),
+                                              NO_DEPOSIT,
+                                              GAS_FOR_AFTER_FT_TRANSFER)
+            );
     }
 
     pub fn pause(&mut self) {

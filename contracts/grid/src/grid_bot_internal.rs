@@ -289,9 +289,21 @@ impl GridBotContract {
         *balance -= *amount;
     }
 
+    pub fn internal_get_global_balance(&self, token: &AccountId) -> U128C {
+        if !self.token_map.contains_key(token) {
+            return U128C::from(0);
+        }
+        return self.token_map.get(token).unwrap().clone();
+    }
+
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
         self.internal_ft_transfer(&user, &token, amount.clone());
         emit::withdraw_started(&user, amount.clone(), &token);
+    }
+
+    pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        self.internal_ft_transfer_unowned_asset(&user, &token, amount.clone());
+        emit::withdraw_unowned_asset_started(&user, amount.clone(), &token);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

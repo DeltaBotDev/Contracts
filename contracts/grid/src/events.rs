@@ -59,4 +59,36 @@ pub mod emit {
             },
         );
     }
+    pub fn withdraw_unowned_asset_started(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "withdraw_unowned_asset_started",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn withdraw_unowned_asset_succeeded(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "withdraw_unowned_asset_succeeded",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn withdraw_unowned_asset_failed(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "withdraw_unowned_asset_failed",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
 }
