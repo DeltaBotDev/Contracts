@@ -6,7 +6,7 @@ use crate::token::ext_self;
 
 #[near_bindgen]
 impl GridBotContract {
-    #[payable]
+
     pub fn create_bot(&mut self, name:String, pair_id: String, slippage: u16, grid_type: GridType,
                       grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
@@ -101,13 +101,10 @@ impl GridBotContract {
     pub fn claim(&mut self, bot_id: String) {
         assert!(self.bot_map.contains_key(&bot_id), "BOT_NOT_EXIST");
         let bot = self.bot_map.get(&bot_id).unwrap().clone();
-        let user = env::predecessor_account_id();
         let pair = self.pair_map.get(&(bot.pair_id)).unwrap().clone();
-        // check permission
-        assert_eq!(bot.user, user, "NO_PERMISSION");
         // harvest revenue
-        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &user);
-        self.internal_withdraw(&user, &revenue_token, revenue);
+        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &(bot.user));
+        self.internal_withdraw(&(bot.user), &revenue_token, revenue);
     }
 
     pub fn trigger_bot(&mut self, bot_id: String) {
@@ -126,6 +123,8 @@ impl GridBotContract {
         let balance = self.internal_get_user_balance(&user, &token);
         self.internal_withdraw(&user, &token, balance.as_u128());
     }
+
+    //################################################## Owner #####################################
 
     pub fn withdraw_protocol_fee(&mut self, token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");

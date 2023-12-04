@@ -29,7 +29,7 @@ impl GridBotContract {
 
         let mut orders: Vec<Order> = Vec::with_capacity(bot_ids.len());
         for (index, bot_id) in bot_ids.iter().enumerate() {
-            let (order, _) = self.query_order(bot_id.clone(), forward_or_reverses[index], levels[index]);
+            let (order, _) = self.query_order(bot_id.clone(), forward_or_reverses[index.clone()].clone(), levels[index].clone());
             orders.push(order);
         }
         return orders;
