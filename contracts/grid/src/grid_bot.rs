@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::{Gas, near_bindgen, Promise};
+use near_sdk::{assert_one_yocto, Gas, near_bindgen, Promise};
 use serde_json::json;
 use crate::entity::{GridType, OrderKeyInfo};
 use crate::token::ext_self;
@@ -12,9 +12,11 @@ impl GridBotContract {
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: u64,
                       entry_price: U128C) {
+        assert_one_yocto();
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
         assert!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , "ORACLE_PRICE_EXCEPTION");
         assert!(self.pair_map.contains_key(&pair_id), "INVALID_PAIR_ID");
+
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
 
@@ -50,6 +52,7 @@ impl GridBotContract {
     }
 
     pub fn close_bot(&mut self, bot_id: String) {
+        assert_one_yocto();
         assert!(self.bot_map.contains_key(&bot_id), "BOT_NOT_EXIST");
         let bot = self.bot_map.get(&bot_id).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
@@ -65,16 +68,17 @@ impl GridBotContract {
         // reget bot
         let bot = self.bot_map.get(&bot_id).unwrap().clone();
         // unlock token
-        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), bot.total_base_amount.clone());
-        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), bot.total_quote_amount.clone());
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), U128C::from(bot.total_base_amount.clone()));
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), U128C::from(bot.total_quote_amount.clone()));
 
         // withdraw token
-        self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount.clone());
-        self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount.clone());
+        self.internal_withdraw(&(bot.user), &(pair.base_token), U128C::from(bot.total_base_amount));
+        self.internal_withdraw(&(bot.user), &(pair.quote_token), U128C::from(bot.total_quote_amount));
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
     }
 
     pub fn take_orders(&mut self, take_order: &mut Order, maker_orders: Vec<OrderKeyInfo>) {
+        assert_one_yocto();
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
         assert!(maker_orders.len() > 0, "VALID_MAKER_ORDERS");
         let user = env::predecessor_account_id();
@@ -91,11 +95,11 @@ impl GridBotContract {
         let total_taker_sell = taker_amount_sell - take_order.amount_sell;
         let total_taker_buy = taker_amount_buy - take_order.amount_buy;
         // transfer taker's asset
-        self.internal_reduce_asset(&user, &(take_order.token_sell), total_taker_sell.as_u128());
-        self.internal_increase_asset(&user, &(take_order.token_buy), total_taker_buy.as_u128());
+        self.internal_reduce_asset(&user, &(take_order.token_sell), total_taker_sell);
+        self.internal_increase_asset(&user, &(take_order.token_buy), total_taker_buy);
 
         // withdraw for taker
-        self.internal_withdraw(&user, &(take_order.token_buy), total_taker_buy.as_u128());
+        self.internal_withdraw(&user, &(take_order.token_buy), total_taker_buy);
     }
 
     pub fn claim(&mut self, bot_id: String) {
@@ -119,22 +123,23 @@ impl GridBotContract {
     }
 
     pub fn withdraw(&mut self, token: AccountId) {
+        assert_one_yocto();
         let user = env::predecessor_account_id();
         let balance = self.internal_get_user_balance(&user, &token);
-        self.internal_withdraw(&user, &token, balance.as_u128());
+        self.internal_withdraw(&user, &token, balance);
     }
 
     //################################################## Owner #####################################
 
     pub fn withdraw_protocol_fee(&mut self, token: AccountId) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         assert!(self.protocol_fee_map.contains_key(&token), "VALID_TOKEN");
         let protocol_fee = self.internal_get_protocol_fee(&token);
-        self.internal_withdraw_protocol_fee(&(self.owner_id.clone()), &token, protocol_fee.as_u128());
+        self.internal_withdraw_protocol_fee(&(self.owner_id.clone()), &token, protocol_fee);
     }
 
     pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         Promise::new(token.clone())
             .function_call(
                 "ft_balance_of".to_string(),
@@ -151,22 +156,22 @@ impl GridBotContract {
     }
 
     pub fn pause(&mut self) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         self.status = GridStatus::Paused;
     }
 
     pub fn start(&mut self) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         self.status = GridStatus::Running;
     }
 
     pub fn shutdown(&mut self) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         self.status = GridStatus::Shutdown;
     }
 
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId) {
-        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        self.assert_owner();
         assert_ne!(base_token, quote_token, "VALID_TOKEN");
         let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
         assert!(!self.pair_map.contains_key(&pair_key), "PAIR_EXIST");

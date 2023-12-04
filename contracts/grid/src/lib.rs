@@ -23,6 +23,9 @@ mod orderbook_views;
 mod big_decimal;
 mod events;
 mod grid_bot_private;
+mod grid_bot_get_set;
+mod grid_bot_asset;
+mod owner;
 
 pub use crate::constants::*;
 pub use crate::errors::*;

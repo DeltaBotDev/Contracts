@@ -24,7 +24,7 @@ impl FungibleTokenReceiver for GridBotContract {
         let amount: u128 = amount.into();
         log!("Deposit token:{}, amount:{}", token_in.clone(), amount.clone());
         // add amount to user
-        self.internal_increase_asset(&sender_id, &token_in, amount.clone());
+        self.internal_increase_asset(&sender_id, &token_in, U128C::from(amount.clone()));
         // add amount to global
         self.internal_increase_global_asset(&token_in, &(U128C::from(amount)));
         return PromiseOrValue::Value(U128::from(0));
@@ -38,7 +38,7 @@ impl GridBotContract {
             amount.into(),
             None,
             token_id.clone(),
-            // TODO ONE_YOCTO
+            // must set 1
             ONE_YOCTO,
             GAS_FOR_FT_TRANSFER,
         )
@@ -57,7 +57,7 @@ impl GridBotContract {
             amount.into(),
             None,
             token_id.clone(),
-            // TODO ONE_YOCTO
+            // must set 1
             ONE_YOCTO,
             GAS_FOR_FT_TRANSFER,
         )
@@ -98,9 +98,8 @@ impl ExtSelf for GridBotContract {
         token_id: AccountId,
         amount: U128,
     ) -> bool {
-        // TODO confirm transfer failed mean !promise_success
         let promise_success = is_promise_success();
-        if !promise_success {
+        if !promise_success.clone() {
             emit::withdraw_failed(&account_id, amount.0, &token_id);
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
@@ -117,9 +116,8 @@ impl ExtSelf for GridBotContract {
         token_id: AccountId,
         amount: U128,
     ) -> bool {
-        // TODO confirm transfer failed mean !promise_success
         let promise_success = is_promise_success();
-        if !promise_success {
+        if !promise_success.clone() {
             emit::withdraw_unowned_asset_failed(&account_id, amount.0, &token_id);
         } else {
             emit::withdraw_unowned_asset_succeeded(&account_id, amount.clone().0, &token_id);
@@ -133,7 +131,7 @@ impl ExtSelf for GridBotContract {
             let recorded_balance = self.internal_get_global_balance(&token_id);
             assert!(balance.0 >= recorded_balance.as_u128(), "VALID_BALANCE");
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
-            self.internal_withdraw_unowned_asset(&(self.owner_id.clone()), &token_id, can_withdraw_amount);
+            self.internal_withdraw_unowned_asset(&(self.owner_id.clone()), &token_id, U128C::from(can_withdraw_amount));
         } else {
             // TODO print log
         }

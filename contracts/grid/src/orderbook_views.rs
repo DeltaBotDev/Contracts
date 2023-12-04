@@ -15,7 +15,7 @@ impl GridBotContract {
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse { &bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &bot_orders[REVERSE_ORDERS_INDEX.clone()] };
         // check order
-        if GridBotContract::internal_order_is_empty(orders[level].clone()) {
+        if GridBotContract::internal_order_is_empty(&(orders[level])) {
             // The current grid order has not been placed yet
             let pair = self.pair_map.get(&(bot.pair_id.clone())).unwrap();
             return (GridBotContract::internal_get_first_forward_order(bot.clone(), pair.clone(), level.clone()), false);

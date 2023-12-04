@@ -5,28 +5,11 @@ use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
-use crate::events::emit;
 
 impl GridBotContract {
-    // pub fn internal_transfer_token(&self, receiver_id: AccountId, amount: Balance, token_contract_id: AccountId) {
-    //     Promise::new(token_contract_id)
-    //         .function_call(
-    //             "ft_transfer".to_string(),
-    //             json!({
-    //                 "receiver_id": receiver_id,
-    //                 "amount": amount
-    //             }).to_string().into_bytes(),
-    //             1_000_000_000_000_000_000_000, // 需要附加的GAS量
-    //             0, // 附加的NEAR数量，如果是转账 NEP-141 代币，则为 0
-    //         );
-    // }
-
-    pub fn internal_get_next_bot_id(&self) -> u128 {
-        return self.next_bot_id;
-    }
 
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
-        let next_id = self.next_bot_id;
+        let next_id = self.next_bot_id.clone();
 
         assert_ne!(self.next_bot_id.checked_add(1), None, "VALID_NEXT_BOT_ID");
 
@@ -34,26 +17,6 @@ impl GridBotContract {
 
         return next_id;
     }
-
-    pub fn internal_get_user_balance(&self, user: &AccountId, token: &AccountId) -> U128C {
-        return self.user_balances_map.get(user)
-            .and_then(|balances| balances.get(token).cloned())
-            .unwrap_or(U128C::from(0));
-    }
-
-    pub fn internal_get_protocol_fee(&self, token: &AccountId) -> U128C {
-        return self.protocol_fee_map.get(token).unwrap().clone();
-    }
-
-    // pub fn internal_get_and_use_next_pair_id(&mut self) -> u128 {
-    //     let next_id = self.next_pair_id;
-    //
-    //     assert_ne!(self.next_pair_id.checked_add(1), None, "VALID_NEXT_PAIR_ID");
-    //
-    //     self.next_pair_id += 1;
-    //
-    //     return next_id;
-    // }
 
     pub fn internal_init_bot_status(&self, bot: &mut GridBot, entry_price: U128C) {
         if bot.trigger_price == U128C::from(0) {
@@ -65,18 +28,6 @@ impl GridBotContract {
         } else {
             bot.trigger_price_above_or_below = true;
         }
-    }
-
-    pub fn internal_get_oracle_price(&self, pair_id: String) -> U128C {
-        if !self.oracle_price_map.contains_key(&pair_id) {
-            return U128C::from(0);
-        }
-        let price_info = self.oracle_price_map.get(&pair_id).unwrap();
-        if price_info.valid_timestamp < env::block_timestamp() {
-            // oracle price expired
-            return U128C::from(0);
-        }
-        return price_info.price;
     }
 
     pub fn internal_check_oracle_price(&self, entry_price: U128C, pair_id: String, slippage: u16) -> bool {
@@ -207,126 +158,6 @@ impl GridBotContract {
             }
         };
         return (base_amount_sell, quote_amount_buy);
-    }
-
-    pub fn internal_get_pair_key(base_token: AccountId, quote_token: AccountId) -> String {
-        return format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
-    }
-
-    pub fn internal_transfer_assets_to_lock(&mut self, user: AccountId, token: AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
-            return;
-        }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance -= amount;
-
-        let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *locked_balance += amount;
-    }
-
-    pub fn internal_transfer_assets_to_unlock(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        if amount == 0 {
-            return;
-        }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance += U128C::from(amount.clone());
-
-        let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *locked_balance -= U128C::from(amount);
-    }
-
-    pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        if amount == 0 {
-            return;
-        }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance -= U128C::from(amount);
-    }
-
-    pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        if amount == 0 {
-            return;
-        }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance += U128C::from(amount);
-    }
-
-    pub fn internal_remove_revenue_from_bot(&mut self, bot: &GridBot) {
-        if bot.fill_base_or_quote {
-            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
-        } else {
-            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
-        }
-    }
-
-    pub fn internal_harvest_revenue(&mut self, bot: &GridBot, pair: &Pair, user: &AccountId) -> (AccountId, Balance) {
-        let revenue_token = if bot.fill_base_or_quote {
-            pair.base_token.clone()
-        } else {
-            pair.quote_token.clone()
-        };
-        let revenue = bot.revenue.clone();
-        // transfer out from bot asset
-        self.internal_remove_revenue_from_bot(&bot);
-        // transfer to available asset
-        self.internal_increase_asset(&user, &revenue_token, revenue.clone());
-        // sign to 0
-        self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = 0;
-        return (revenue_token, revenue);
-    }
-
-    pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.global_balances_map.get_mut(token).unwrap();
-        *balance += *amount;
-    }
-
-    pub fn internal_reduce_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.global_balances_map.get_mut(token).unwrap();
-        *balance -= *amount;
-    }
-
-    pub fn internal_increase_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.protocol_fee_map.get_mut(token).unwrap();
-        *balance += *amount;
-    }
-
-    pub fn internal_reduce_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.protocol_fee_map.get_mut(token).unwrap();
-        *balance -= *amount;
-    }
-
-    pub fn internal_get_global_balance(&self, token: &AccountId) -> U128C {
-        if !self.global_balances_map.contains_key(token) {
-            return U128C::from(0);
-        }
-        return self.global_balances_map.get(token).unwrap().clone();
-    }
-
-    pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        // reduce user asset
-        self.internal_reduce_asset(user, token, amount.clone());
-        // start transfer
-        self.internal_ft_transfer(&user, &token, amount.clone());
-        emit::withdraw_started(&user, amount.clone(), &token);
-    }
-
-    pub fn internal_withdraw_protocol_fee(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        // reduce protocol
-        self.internal_reduce_protocol_fee(token, &(U128C::from(amount.clone())));
-        // start transfer
-        self.internal_ft_transfer(&user, &token, amount.clone());
-        emit::withdraw_started(&user, amount.clone(), &token);
-    }
-
-    pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
-        self.internal_ft_transfer_unowned_asset(&user, &token, amount.clone());
-        emit::withdraw_unowned_asset_started(&user, amount.clone(), &token);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

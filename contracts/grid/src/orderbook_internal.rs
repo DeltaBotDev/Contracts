@@ -2,24 +2,6 @@ use crate::*;
 use crate::entity::GridType::EqOffset;
 
 impl GridBotContract {
-    // pub fn internal_place_order(&mut self, bot_id: String, order_id: String, token_sell: AccountId, token_buy: AccountId, amount_sell: U128C, amount_buy:U128C, fill_buy_or_sell: bool, forward_or_reverse: bool, level: u16) {
-    //     assert!(self.bot_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_BOT_MAP");
-    //     assert!(self.order_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_ORDER_MAP");
-    //     assert_eq!(self.order_map.get(&bot_id).unwrap().len(), ORDER_POSITION_SIZE.clone() as usize, "INVALID_ORDER_POSITION_LEN");
-    //
-    //     let order = Order{
-    //         order_id,
-    //         token_sell,
-    //         token_buy,
-    //         amount_sell,
-    //         amount_buy,
-    //         fill_buy_or_sell,
-    //         filled: U128C::from(0),
-    //     };
-    //     let bot_orders = self.order_map.get_mut(&bot_id).unwrap();
-    //     let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
-    //     GridBotContract::private_place_order(order, orders, level.clone() as usize);
-    // }
     pub fn internal_place_order(&mut self, bot_id: String, order: Order, forward_or_reverse: bool, level: usize) {
         assert!(self.bot_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_BOT_MAP");
         assert!(self.order_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_ORDER_MAP");
@@ -68,52 +50,6 @@ impl GridBotContract {
         self.internal_add_protocol_fee(&revenue_token, protocol_fee, bot_id, &pair);
 
         return (taker_sell, taker_buy);
-    }
-
-    pub fn internal_add_protocol_fee(&mut self, token: &AccountId, fee: Balance, bot_id: String, pair: &Pair) {
-        if !self.protocol_fee_map.contains_key(token) {
-            self.protocol_fee_map.insert(token.clone(), U128C::from(0));
-        }
-        let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
-        let user = bot_mut.user.clone();
-        // reduce bot's asset
-        if *token == pair.base_token {
-            bot_mut.total_base_amount -= fee.clone();
-        } else {
-            bot_mut.total_quote_amount -= fee.clone();
-        }
-        // reduce user's lock asset
-        self.internal_reduce_locked_assets(&user, &token, &(U128C::from(fee.clone())));
-        // add into protocol fee map
-        self.internal_increase_protocol_fee(token, &(U128C::from(fee.clone())));
-    }
-
-    pub fn internal_update_bot_asset(bot: &mut GridBot, pair: &Pair, token_sell: AccountId, amount_sell: Balance, amount_buy: Balance) {
-        if pair.base_token == token_sell {
-            bot.total_base_amount = bot.total_base_amount.checked_sub(amount_sell).expect("Base amount underflow");
-            bot.total_quote_amount = bot.total_quote_amount.checked_add(amount_buy).expect("Quote amount overflow");
-        } else {
-            bot.total_base_amount = bot.total_base_amount.checked_add(amount_buy).expect("Base amount overflow");
-            bot.total_quote_amount = bot.total_quote_amount.checked_sub(amount_sell).expect("Quote amount underflow");
-        }
-    }
-
-    pub fn internal_increase_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
-        if *amount == U128C::from(0) {
-            return;
-        }
-        let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance += *amount;
-    }
-
-    pub fn internal_reduce_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
-        if *amount == U128C::from(0) {
-            return;
-        }
-        let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance -= *amount;
     }
 
     pub fn internal_check_order_match(maker_order: Order, taker_order: Order) {
@@ -167,8 +103,8 @@ impl GridBotContract {
         return (taker_sell, taker_buy, current_filled);
     }
 
-    pub fn internal_order_is_empty(order: Order) -> bool {
-        return order.amount_buy == U128C::from(0) || order.amount_sell == U128C::from(0)
+    pub fn internal_order_is_empty(order: &Order) -> bool {
+        return order.amount_buy == U128C::from(0) || order.amount_sell == U128C::from(0) || order.order_id == ""
     }
 
     pub fn internal_get_reserve_order(maker_order: Order, bot: GridBot, level: usize) -> Order {
@@ -246,7 +182,7 @@ impl GridBotContract {
 
     fn private_place_order(order: Order, placed_orders: &mut Vec<Order>, level: usize) {
         let placed_order = &mut placed_orders[level.clone()];
-        if placed_order.order_id == "" {
+        if GridBotContract::internal_order_is_empty(placed_order) {
             placed_orders[level.clone()] = order;
             return;
         }
