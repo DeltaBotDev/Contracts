@@ -50,21 +50,45 @@ impl GridBotContract {
         self.internal_place_order(bot_id.clone(), opposite_order.clone(), !forward_or_reverse.clone(), level.clone());
 
         // calculate bot's revenue
-        let revenue = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order, opposite_order, current_filled.as_u128());
+        let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order, opposite_order, current_filled.as_u128());
         // add revenue
         let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
         bot_mut.revenue += revenue;
         // update bot asset
-        GridBotContract::internal_update_bot_asset(bot_mut, pair, taker_order.token_buy.clone(), taker_order.token_sell.clone(), taker_buy.as_u128(), taker_sell.as_u128());
+        GridBotContract::internal_update_bot_asset(bot_mut, &pair, taker_order.token_buy.clone(), taker_buy.as_u128(), taker_sell.as_u128());
 
         // bot asset transfer
-        self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
         self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
+        self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
+        // update global
+        self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
+        self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
+
+        // handle protocol fee
+        self.internal_add_protocol_fee(&revenue_token, protocol_fee, bot_id, &pair);
 
         return (taker_sell, taker_buy);
     }
 
-    pub fn internal_update_bot_asset(bot: &mut GridBot, pair: Pair, token_sell: AccountId, token_buy: AccountId, amount_sell: Balance, amount_buy: Balance) {
+    pub fn internal_add_protocol_fee(&mut self, token: &AccountId, fee: Balance, bot_id: String, pair: &Pair) {
+        if !self.protocol_fee_map.contains_key(token) {
+            self.protocol_fee_map.insert(token.clone(), U128C::from(0));
+        }
+        let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
+        let user = bot_mut.user.clone();
+        // reduce bot's asset
+        if *token == pair.base_token {
+            bot_mut.total_base_amount -= fee.clone();
+        } else {
+            bot_mut.total_quote_amount -= fee.clone();
+        }
+        // reduce user's lock asset
+        self.internal_reduce_locked_assets(&user, &token, &(U128C::from(fee.clone())));
+        // add into protocol fee map
+        self.internal_increase_protocol_fee(token, &(U128C::from(fee.clone())));
+    }
+
+    pub fn internal_update_bot_asset(bot: &mut GridBot, pair: &Pair, token_sell: AccountId, amount_sell: Balance, amount_buy: Balance) {
         if pair.base_token == token_sell {
             bot.total_base_amount = bot.total_base_amount.checked_sub(amount_sell).expect("Base amount underflow");
             bot.total_quote_amount = bot.total_quote_amount.checked_add(amount_buy).expect("Quote amount overflow");
@@ -191,26 +215,33 @@ impl GridBotContract {
         return reverse_order;
     }
 
-    pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: Balance) -> Balance {
+    pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: Balance) -> (AccountId, Balance, Balance) {
         if forward_or_reverse {
-            return 0;
+            return (opposite_order.token_sell, 0, 0);
         }
         // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
+        let revenue_token;
+        let mut revenue;
         if opposite_order.fill_buy_or_sell {
             // current_filled token is forward_order's buy token
             // revenue token is forward_order's sell token
             let forward_sold = current_filled.clone() * opposite_order.amount_sell.as_u128() / opposite_order.amount_buy.as_u128();
             let reverse_bought = current_filled.clone() * order.amount_buy.as_u128() / order.amount_sell.as_u128();
             assert!(reverse_bought >= forward_sold, "VALID_REVENUE");
-            reverse_bought - forward_sold
+            revenue_token = opposite_order.token_sell;
+            revenue = reverse_bought - forward_sold;
         } else {
             // current_filled token is forward_order's sell token
             // revenue token is forward_order's buy token
             let forward_bought = current_filled.clone() * opposite_order.amount_buy.as_u128() / opposite_order.amount_sell.as_u128();
             let reverse_sold = current_filled.clone() * order.amount_sell.as_u128() / order.amount_buy.as_u128();
             assert!(forward_bought >= reverse_sold, "VALID_REVENUE");
-            forward_bought - reverse_sold
-        }
+            revenue_token = opposite_order.token_buy;
+            revenue = forward_bought - reverse_sold;
+        };
+        let protocol_fee = revenue * self.protocol_fee_rate.clone() / PROTOCOL_FEE_DENOMINATOR;
+        revenue -= protocol_fee;
+        return (revenue_token, revenue.clone(), protocol_fee.clone());
     }
 
     fn private_place_order(order: Order, placed_orders: &mut Vec<Order>, level: usize) {

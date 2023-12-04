@@ -1,12 +1,12 @@
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
-use near_contract_standards::fungible_token::events;
-use near_contract_standards::non_fungible_token::TokenId;
+// use near_contract_standards::fungible_token::events;
+// use near_contract_standards::non_fungible_token::TokenId;
 use near_sdk::{AccountId, Balance, env, is_promise_success, log, Promise, PromiseError, PromiseOrValue};
 use crate::*;
 use near_sdk::json_types::U128;
 use near_sdk::{ext_contract, near_bindgen};
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+// use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use crate::events::emit;
 
 #[near_bindgen]
@@ -20,7 +20,7 @@ impl FungibleTokenReceiver for GridBotContract {
     ) -> PromiseOrValue<U128> {
         assert!(msg.is_empty(), "VALID_TRANSFER_DATA");
         let token_in = env::predecessor_account_id();
-        assert!(self.token_map.contains_key(&(token_in.clone())), "VALID_TOKEN");
+        assert!(self.global_balances_map.contains_key(&(token_in.clone())), "VALID_TOKEN");
         let amount: u128 = amount.into();
         log!("Deposit token:{}, amount:{}", token_in.clone(), amount.clone());
         // add amount to user
@@ -103,9 +103,8 @@ impl ExtSelf for GridBotContract {
         if !promise_success {
             emit::withdraw_failed(&account_id, amount.0, &token_id);
         } else {
-            // reduce asset
-            self.internal_reduce_asset(&account_id, &token_id, amount.0);
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
+            // reduce from global asset
             self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
         }
         promise_success

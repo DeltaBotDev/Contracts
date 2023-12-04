@@ -1,9 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env, Gas, Promise};
-use near_sdk::json_types::U128;
-use serde_json::json;
-use crate::{GridBotContract, SLIPPAGE_DENOMINATOR, U256C};
+use near_sdk::{env};
+use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
@@ -41,6 +39,10 @@ impl GridBotContract {
         return self.user_balances_map.get(user)
             .and_then(|balances| balances.get(token).cloned())
             .unwrap_or(U128C::from(0));
+    }
+
+    pub fn internal_get_protocol_fee(&self, token: &AccountId) -> U128C {
+        return self.protocol_fee_map.get(token).unwrap().clone();
     }
 
     // pub fn internal_get_and_use_next_pair_id(&mut self) -> u128 {
@@ -280,23 +282,44 @@ impl GridBotContract {
     }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.token_map.get_mut(token).unwrap();
+        let balance = self.global_balances_map.get_mut(token).unwrap();
         *balance += *amount;
     }
 
     pub fn internal_reduce_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.token_map.get_mut(token).unwrap();
+        let balance = self.global_balances_map.get_mut(token).unwrap();
+        *balance -= *amount;
+    }
+
+    pub fn internal_increase_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
+        let balance = self.protocol_fee_map.get_mut(token).unwrap();
+        *balance += *amount;
+    }
+
+    pub fn internal_reduce_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
+        let balance = self.protocol_fee_map.get_mut(token).unwrap();
         *balance -= *amount;
     }
 
     pub fn internal_get_global_balance(&self, token: &AccountId) -> U128C {
-        if !self.token_map.contains_key(token) {
+        if !self.global_balances_map.contains_key(token) {
             return U128C::from(0);
         }
-        return self.token_map.get(token).unwrap().clone();
+        return self.global_balances_map.get(token).unwrap().clone();
     }
 
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        // reduce user asset
+        self.internal_reduce_asset(user, token, amount.clone());
+        // start transfer
+        self.internal_ft_transfer(&user, &token, amount.clone());
+        emit::withdraw_started(&user, amount.clone(), &token);
+    }
+
+    pub fn internal_withdraw_protocol_fee(&mut self, user: &AccountId, token: &AccountId, amount: Balance) {
+        // reduce protocol
+        self.internal_reduce_protocol_fee(token, &(U128C::from(amount.clone())));
+        // start transfer
         self.internal_ft_transfer(&user, &token, amount.clone());
         emit::withdraw_started(&user, amount.clone(), &token);
     }

@@ -1,10 +1,7 @@
-use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use crate::*;
-use near_sdk::{Gas, near_bindgen, Promise, PromiseError};
+use near_sdk::{Gas, near_bindgen, Promise};
 use serde_json::json;
 use crate::entity::{GridType, OrderKeyInfo};
-use crate::events::emit;
-use near_sdk::ext_contract;
 use crate::token::ext_self;
 
 #[near_bindgen]
@@ -77,13 +74,7 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
     }
 
-    pub fn withdraw(&mut self, token: AccountId) {
-        let user = env::predecessor_account_id();
-        let balance = self.internal_get_user_balance(&user, &token);
-        self.internal_withdraw(&user, &token, balance.as_u128());
-    }
-
-    pub fn take_orders(&mut self, mut take_order: Order, maker_orders: Vec<OrderKeyInfo>) {
+    pub fn take_orders(&mut self, take_order: &mut Order, maker_orders: Vec<OrderKeyInfo>) {
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
         assert!(maker_orders.len() > 0, "VALID_MAKER_ORDERS");
         let user = env::predecessor_account_id();
@@ -130,6 +121,19 @@ impl GridBotContract {
         }
     }
 
+    pub fn withdraw(&mut self, token: AccountId) {
+        let user = env::predecessor_account_id();
+        let balance = self.internal_get_user_balance(&user, &token);
+        self.internal_withdraw(&user, &token, balance.as_u128());
+    }
+
+    pub fn withdraw_protocol_fee(&mut self, token: AccountId) {
+        assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
+        assert!(self.protocol_fee_map.contains_key(&token), "VALID_TOKEN");
+        let protocol_fee = self.internal_get_protocol_fee(&token);
+        self.internal_withdraw_protocol_fee(&(self.owner_id.clone()), &token, protocol_fee.as_u128());
+    }
+
     pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
         assert_eq!(self.owner_id, env::predecessor_account_id(), "NO_PERMISSION");
         Promise::new(token.clone())
@@ -173,11 +177,11 @@ impl GridBotContract {
             quote_token: quote_token.clone(),
         };
         self.pair_map.insert(pair_key, pair.clone());
-        if !self.token_map.contains_key(&(base_token.clone())) {
-            self.token_map.insert(base_token.clone(), U128C::from(0));
+        if !self.global_balances_map.contains_key(&(base_token.clone())) {
+            self.global_balances_map.insert(base_token.clone(), U128C::from(0));
         }
-        if !self.token_map.contains_key(&(quote_token.clone())) {
-            self.token_map.insert(quote_token.clone(), U128C::from(0));
+        if !self.global_balances_map.contains_key(&(quote_token.clone())) {
+            self.global_balances_map.insert(quote_token.clone(), U128C::from(0));
         }
     }
 

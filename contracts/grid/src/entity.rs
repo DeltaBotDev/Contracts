@@ -2,7 +2,7 @@ use near_sdk::{AccountId, Balance};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
-use crate::utils::{U256C, U128C};
+use crate::utils::{U128C};
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(crate = "near_sdk::serde")]
