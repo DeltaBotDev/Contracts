@@ -14,6 +14,7 @@ impl GridBotContract {
                       entry_price: U128C) {
         assert_one_yocto();
         assert!(self.status == GridStatus::Running, "PAUSE_OR_SHUTDOWN");
+        // got oracle price
         assert!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , "ORACLE_PRICE_EXCEPTION");
         assert!(self.pair_map.contains_key(&pair_id), "INVALID_PAIR_ID");
 
@@ -95,8 +96,8 @@ impl GridBotContract {
         let total_taker_sell = taker_amount_sell - take_order.amount_sell;
         let total_taker_buy = taker_amount_buy - take_order.amount_buy;
         // transfer taker's asset
-        self.internal_reduce_asset(&user, &(take_order.token_sell), total_taker_sell);
-        self.internal_increase_asset(&user, &(take_order.token_buy), total_taker_buy);
+        self.internal_reduce_asset(&user, &(take_order.token_sell), &total_taker_sell);
+        self.internal_increase_asset(&user, &(take_order.token_buy), &total_taker_buy);
 
         // withdraw for taker
         self.internal_withdraw(&user, &(take_order.token_buy), total_taker_buy);
@@ -148,7 +149,7 @@ impl GridBotContract {
                 Gas(0),
             )
             .then(
-                ext_self::after_ft_balance_of(env::current_account_id(),
+                ext_self::after_ft_balance_of_for_withdraw_unowned_asset(self.owner_id.clone(),
                                               token.clone(),
                                               NO_DEPOSIT,
                                               GAS_FOR_AFTER_FT_TRANSFER)

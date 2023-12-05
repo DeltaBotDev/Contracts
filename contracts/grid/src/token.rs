@@ -24,7 +24,7 @@ impl FungibleTokenReceiver for GridBotContract {
         let amount: u128 = amount.into();
         log!("Deposit token:{}, amount:{}", token_in.clone(), amount.clone());
         // add amount to user
-        self.internal_increase_asset(&sender_id, &token_in, U128C::from(amount.clone()));
+        self.internal_increase_asset(&sender_id, &token_in, &(U128C::from(amount.clone())));
         // add amount to global
         self.internal_increase_global_asset(&token_in, &(U128C::from(amount)));
         return PromiseOrValue::Value(U128::from(0));
@@ -43,6 +43,25 @@ impl GridBotContract {
             GAS_FOR_FT_TRANSFER,
         )
             .then(ext_self::after_ft_transfer(
+                account_id.clone(),
+                token_id.clone(),
+                amount.into(),
+                env::current_account_id(),
+                NO_DEPOSIT,
+                GAS_FOR_AFTER_FT_TRANSFER,
+            ))
+    }
+    pub fn internal_ft_transfer_protocol_fee(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
+        ext_fungible_token::ft_transfer(
+            account_id.clone(),
+            amount.into(),
+            None,
+            token_id.clone(),
+            // must set 1
+            ONE_YOCTO,
+            GAS_FOR_FT_TRANSFER,
+        )
+            .then(ext_self::after_ft_transfer_protocol_fee(
                 account_id.clone(),
                 token_id.clone(),
                 amount.into(),
@@ -76,17 +95,21 @@ impl GridBotContract {
 trait ExtSelf {
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
+    fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+                         -> bool;
     fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
-    fn after_ft_balance_of(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
+    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
 }
 
 trait ExtSelf {
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
+    fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+                                      -> bool;
     fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                                        -> bool;
-    fn after_ft_balance_of(&mut self, token_id: AccountId, last_result: Result<U128, PromiseError>);
+    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, last_result: Result<U128, PromiseError>);
 }
 
 #[near_bindgen]
@@ -100,9 +123,29 @@ impl ExtSelf for GridBotContract {
     ) -> bool {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
-            emit::withdraw_failed(&account_id, amount.0, &token_id);
+            emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
+            self.internal_increase_asset(&account_id, &token_id, &(U128C::from(amount.clone().0)));
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
+            // reduce from global asset
+            self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
+        }
+        promise_success
+    }
+
+    #[private]
+    fn after_ft_transfer_protocol_fee(
+        &mut self,
+        account_id: AccountId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        let promise_success = is_promise_success();
+        if !promise_success.clone() {
+            emit::withdraw_protocol_fee_failed(&account_id, amount.clone().0, &token_id);
+            self.internal_increase_protocol_fee(&token_id, &(U128C::from(amount.clone().0)));
+        } else {
+            emit::withdraw_protocol_fee_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset
             self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
         }
@@ -126,7 +169,7 @@ impl ExtSelf for GridBotContract {
     }
 
     #[private]
-    fn after_ft_balance_of(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>) {
+    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>) {
         if let Ok(balance) = last_result {
             let recorded_balance = self.internal_get_global_balance(&token_id);
             assert!(balance.0 >= recorded_balance.as_u128(), "VALID_BALANCE");

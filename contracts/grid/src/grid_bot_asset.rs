@@ -6,22 +6,22 @@ use crate::events::emit;
 
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
-    pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
+    pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
+        if *amount == U128C::from(0) {
             return;
         }
         let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
         let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance -= U128C::from(amount);
+        *balance -= *amount;
     }
 
-    pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
+    pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
+        if *amount == U128C::from(0) {
             return;
         }
         let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
         let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance += U128C::from(amount);
+        *balance += *amount;
     }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U128C) {
@@ -136,7 +136,7 @@ impl GridBotContract {
         // transfer out from bot asset
         self.internal_remove_revenue_from_bot(&bot);
         // transfer to available asset
-        self.internal_increase_asset(&user, &revenue_token, U128C::from(revenue.clone()));
+        self.internal_increase_asset(&user, &revenue_token, &(U128C::from(revenue.clone())));
         // sign to 0
         self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = 0;
         return (revenue_token, U128C::from(revenue));
@@ -145,7 +145,7 @@ impl GridBotContract {
     //################################## Withdraw ##################################################
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: U128C) {
         // reduce user asset
-        self.internal_reduce_asset(user, token, amount.clone());
+        self.internal_reduce_asset(user, token, &amount);
         // start transfer
         self.internal_ft_transfer(&user, &token, amount.as_u128());
         emit::withdraw_started(&user, amount.as_u128(), &token);
@@ -156,7 +156,7 @@ impl GridBotContract {
         self.internal_reduce_protocol_fee(token, &(amount.clone()));
         // start transfer
         self.internal_ft_transfer(&user, &token, amount.as_u128());
-        emit::withdraw_started(&user, amount.as_u128(), &token);
+        emit::withdraw_protocol_fee_started(&user, amount.as_u128(), &token);
     }
 
     pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U128C) {
