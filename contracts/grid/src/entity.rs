@@ -47,7 +47,7 @@ pub struct GridBot {
     pub take_profit_price: U128C,
     /// real_stop_loss_price = stop_loss_price / 10^18
     pub stop_loss_price: U128C,
-    pub valid_until_time: u64,
+    pub valid_until_time: U128C,
     pub total_quote_amount: Balance,
     pub total_base_amount: Balance,
     pub revenue: Balance,
@@ -133,7 +133,6 @@ impl Clone for OrderKeyInfo {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OraclePrice {
     pub valid_timestamp: u64,
-    pub pair_id: U128C,
     pub price: U128C,
 }
 

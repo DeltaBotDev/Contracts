@@ -1,11 +1,12 @@
+use near_sdk::require;
 use crate::*;
 use crate::entity::GridType::EqOffset;
 
 impl GridBotContract {
     pub fn internal_place_order(&mut self, bot_id: String, order: Order, forward_or_reverse: bool, level: usize) {
-        assert!(self.bot_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_BOT_MAP");
-        assert!(self.order_map.contains_key(&bot_id), "INVALID_BOT_ID_FOR_ORDER_MAP");
-        assert_eq!(self.order_map.get(&bot_id).unwrap().len(), ORDER_POSITION_SIZE.clone() as usize, "INVALID_ORDER_POSITION_LEN");
+        require!(self.bot_map.contains_key(&bot_id), INVALID_BOT_ID_FOR_BOT_MAP);
+        require!(self.order_map.contains_key(&bot_id), INVALID_BOT_ID_FOR_ORDER_MAP);
+        require!(self.order_map.get(&bot_id).unwrap().len() == ORDER_POSITION_SIZE.clone() as usize, INVALID_ORDER_POSITION_LEN);
 
         let bot_orders = self.order_map.get_mut(&bot_id).unwrap();
         let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
@@ -53,13 +54,13 @@ impl GridBotContract {
     }
 
     pub fn internal_check_order_match(maker_order: Order, taker_order: Order) {
-        assert_eq!(maker_order.token_buy, taker_order.token_sell, "VALID_ORDER_TOKEN");
-        assert_eq!(maker_order.token_sell, taker_order.token_buy, "VALID_ORDER_TOKEN");
-        assert_ne!(taker_order.token_sell, taker_order.token_buy, "VALID_ORDER_TOKEN");
-        assert_ne!(taker_order.amount_sell, U128C::from(0), "VALID_ORDER_AMOUNT");
-        assert_ne!(taker_order.amount_buy, U128C::from(0), "VALID_ORDER_AMOUNT");
+        require!(maker_order.token_buy == taker_order.token_sell, INVALID_ORDER_TOKEN);
+        require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
+        require!(taker_order.token_sell != taker_order.token_buy, INVALID_ORDER_TOKEN);
+        require!(taker_order.amount_sell != U128C::from(0), INVALID_ORDER_AMOUNT);
+        require!(taker_order.amount_buy != U128C::from(0), INVALID_ORDER_AMOUNT);
 
-        assert!(taker_order.amount_sell/taker_order.amount_buy <= maker_order.amount_sell/maker_order.amount_buy, "VALID_PRICE");
+        require!(taker_order.amount_sell/taker_order.amount_buy <= maker_order.amount_sell/maker_order.amount_buy, INVALID_PRICE);
     }
 
     pub fn internal_calculate_matching(maker_order: Order, taker_order: Order) -> (U128C, U128C, U128C) {
@@ -163,7 +164,7 @@ impl GridBotContract {
             // revenue token is forward_order's sell token
             let forward_sold = current_filled.clone() * opposite_order.amount_sell.as_u128() / opposite_order.amount_buy.as_u128();
             let reverse_bought = current_filled.clone() * order.amount_buy.as_u128() / order.amount_sell.as_u128();
-            assert!(reverse_bought >= forward_sold, "VALID_REVENUE");
+            require!(reverse_bought >= forward_sold, INVALID_REVENUE);
             revenue_token = opposite_order.token_sell;
             revenue = reverse_bought - forward_sold;
         } else {
@@ -171,7 +172,7 @@ impl GridBotContract {
             // revenue token is forward_order's buy token
             let forward_bought = current_filled.clone() * opposite_order.amount_buy.as_u128() / opposite_order.amount_sell.as_u128();
             let reverse_sold = current_filled.clone() * order.amount_sell.as_u128() / order.amount_buy.as_u128();
-            assert!(forward_bought >= reverse_sold, "VALID_REVENUE");
+            require!(forward_bought >= reverse_sold, INVALID_REVENUE);
             revenue_token = opposite_order.token_buy;
             revenue = forward_bought - reverse_sold;
         };

@@ -1,17 +1,19 @@
 use crate::*;
-use near_sdk::{near_bindgen};
+use near_sdk::{near_bindgen, require};
 
 #[near_bindgen]
 impl GridBotContract {
 
     /// return (order, in_orderbook)
     pub fn query_order(&self, bot_id: String, forward_or_reverse: bool, level: usize) -> (Order, bool) {
-        assert!(self.order_map.contains_key(&bot_id), "VALID_BOT_ID");
-        assert!(self.bot_map.contains_key(&bot_id), "VALID_BOT_ID");
+        require!(self.order_map.contains_key(&bot_id), INVALID_BOT_ID);
+        require!(self.bot_map.contains_key(&bot_id), INVALID_BOT_ID);
         let bot = self.bot_map.get(&bot_id).unwrap();
-        assert!(!(bot.closed.clone()), "BOT_CLOSED");
-        assert!(bot.active.clone(), "BOT_DISABLE");
-        assert!(self.pair_map.contains_key(&(bot.pair_id.clone())), "VALID_PAIR_ID");
+        require!(!(bot.closed.clone()), BOT_CLOSED);
+        require!(bot.active.clone(), BOT_DISABLE);
+        require!(self.pair_map.contains_key(&(bot.pair_id.clone())), INVALID_PAIR_ID);
+        // check timestamp
+        require!(bot.valid_until_time >= U128C::from(env::block_timestamp()), BOT_EXPIRED);
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse { &bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &bot_orders[REVERSE_ORDERS_INDEX.clone()] };
         // check order
@@ -24,8 +26,8 @@ impl GridBotContract {
     }
 
     pub fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Vec<Order> {
-        assert_eq!(bot_ids.len(), forward_or_reverses.len(), "VALID_PARAM");
-        assert_eq!(levels.len(), forward_or_reverses.len(), "VALID_PARAM");
+        require!(bot_ids.len() == forward_or_reverses.len(), INVALID_PARAM);
+        require!(levels.len() == forward_or_reverses.len(), INVALID_PARAM);
 
         let mut orders: Vec<Order> = Vec::with_capacity(bot_ids.len());
         for (index, bot_id) in bot_ids.iter().enumerate() {

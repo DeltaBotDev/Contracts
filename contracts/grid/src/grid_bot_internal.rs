@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env};
+use near_sdk::{env, require};
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
@@ -11,7 +11,7 @@ impl GridBotContract {
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
         let next_id = self.next_bot_id.clone();
 
-        assert_ne!(self.next_bot_id.checked_add(1), None, "VALID_NEXT_BOT_ID");
+        require!(self.next_bot_id.checked_add(1) != None, INVALID_NEXT_BOT_ID);
 
         self.next_bot_id += 1;
 

@@ -2,7 +2,7 @@ use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 // use near_contract_standards::fungible_token::events;
 // use near_contract_standards::non_fungible_token::TokenId;
-use near_sdk::{AccountId, Balance, env, is_promise_success, log, Promise, PromiseError, PromiseOrValue};
+use near_sdk::{AccountId, Balance, env, is_promise_success, log, Promise, PromiseError, PromiseOrValue, require};
 use crate::*;
 use near_sdk::json_types::U128;
 use near_sdk::{ext_contract, near_bindgen};
@@ -18,9 +18,9 @@ impl FungibleTokenReceiver for GridBotContract {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        assert!(msg.is_empty(), "VALID_TRANSFER_DATA");
+        require!(msg.is_empty(), INVALID_TRANSFER_DATA);
         let token_in = env::predecessor_account_id();
-        assert!(self.global_balances_map.contains_key(&(token_in.clone())), "VALID_TOKEN");
+        require!(self.global_balances_map.contains_key(&(token_in.clone())), INVALID_TOKEN);
         let amount: u128 = amount.into();
         log!("Deposit token:{}, amount:{}", token_in.clone(), amount.clone());
         // add amount to user
@@ -172,7 +172,7 @@ impl ExtSelf for GridBotContract {
     fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>) {
         if let Ok(balance) = last_result {
             let recorded_balance = self.internal_get_global_balance(&token_id);
-            assert!(balance.0 >= recorded_balance.as_u128(), "VALID_BALANCE");
+            require!(balance.0 >= recorded_balance.as_u128(), INVALID_BALANCE);
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
             self.internal_withdraw_unowned_asset(&(self.owner_id.clone()), &token_id, U128C::from(can_withdraw_amount));
         } else {

@@ -1,4 +1,4 @@
-use near_sdk::assert_one_yocto;
+use near_sdk::{assert_one_yocto, require};
 use crate::*;
 
 #[near_bindgen]
@@ -16,7 +16,7 @@ impl GridBotContract {
 
     pub(crate) fn assert_owner(&self) {
         assert_one_yocto();
-        assert_eq!(env::predecessor_account_id(), self.owner_id, "ERR_NOT_ALLOWED");
+        require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
     }
 
     // /// Migration function.
