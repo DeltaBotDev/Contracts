@@ -123,16 +123,16 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
     println!("second reverse level 14 forward order:{}", order_string);
-    // // filled must be 100000000
-    // require!(forward_order_result.order.filled == forward_order_result.order.amount_buy);
+    require!(forward_order_result.order.filled == U128C::from(100000000));
+    require!(forward_order_result.order.amount_sell == U128C::from(4280000000));
+    require!(forward_order_result.order.amount_buy == U128C::from(200000000));
 
     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
     println!("second reverse level 14 reverse order:{}", order_string);
-    // // fixed base
-    // require!(reverse_order_result.order.amount_sell == forward_order_result.order.amount_buy);
-    // // reversed order sell must be 100000000, buy must be 2140000000 + 10000000
-    // require!(reverse_order_result.order.amount_buy == forward_order_result.order.amount_sell + U128C::from(10000000));
+    require!(reverse_order_result.order.filled == U128C::from(100000000));
+    require!(reverse_order_result.order.amount_sell == U128C::from(100000000));
+    require!(reverse_order_result.order.amount_buy == U128C::from(2150000000));
 
     // Partial filled
     let take_order = Order {
@@ -154,12 +154,13 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
     println!("Third Partial forward filled level 14 forward order:{}", order_string);
-    // // filled must be 100000000
-    // require!(forward_order_result.order.filled == forward_order_result.order.amount_buy);
+    require!(forward_order_result.order.filled == U128C::from(150000000));
 
     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
     println!("Third Partial forward filled level 14 reverse order:{}", order_string);
+    require!(reverse_order_result.order.amount_sell == U128C::from(150000000));
+    require!(reverse_order_result.order.amount_buy == U128C::from(3225000000));
 
     Ok(())
 }

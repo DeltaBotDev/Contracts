@@ -19,7 +19,8 @@ pub enum GridType {
     EqRate = 1,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct GridBot {
     pub active: bool,
     pub user: AccountId,

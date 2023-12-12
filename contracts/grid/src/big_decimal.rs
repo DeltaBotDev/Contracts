@@ -5,7 +5,7 @@ use near_sdk::serde::Serializer;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
-use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::serde::{Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use std::str::FromStr;
 
