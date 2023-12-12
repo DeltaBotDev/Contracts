@@ -7,7 +7,7 @@ use crate::entity::{GridType, OrderKeyInfo};
 impl GridBotContract {
 
     #[payable]
-    pub fn create_bot(&mut self, name:String, pair_id: String, slippage: u16, grid_type: GridType,
+    pub fn create_bot(&mut self, pair_id: String, slippage: u16, grid_type: GridType,
                       grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
@@ -41,11 +41,11 @@ impl GridBotContract {
         self.order_map.insert(next_bot_id.clone(), vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]);
 
         // create bot
-        let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
+        let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,
             grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
             first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
             trigger_price, trigger_price_above_or_below: false, take_profit_price, stop_loss_price, valid_until_time,
-            total_quote_amount: quote_amount_buy.as_u128(), total_base_amount: base_amount_sell.as_u128(), revenue: 0
+            total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U128C::from(0)
         };
         // init active status of bot
         self.internal_init_bot_status(&mut new_grid_bot, entry_price);
@@ -73,12 +73,12 @@ impl GridBotContract {
         // reget bot
         let bot = self.bot_map.get(&bot_id).unwrap().clone();
         // unlock token
-        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), U128C::from(bot.total_base_amount.clone()));
-        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), U128C::from(bot.total_quote_amount.clone()));
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), bot.total_base_amount.clone());
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), bot.total_quote_amount.clone());
 
         // withdraw token
-        self.internal_withdraw(&(bot.user), &(pair.base_token), U128C::from(bot.total_base_amount));
-        self.internal_withdraw(&(bot.user), &(pair.quote_token), U128C::from(bot.total_quote_amount));
+        self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount);
+        self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
     }
 

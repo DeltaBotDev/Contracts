@@ -97,9 +97,9 @@ impl GridBotContract {
         let user = bot_mut.user.clone();
         // reduce bot's asset
         if *token == pair.base_token {
-            bot_mut.total_base_amount -= fee.clone();
+            bot_mut.total_base_amount -= U128C::from(fee.clone());
         } else {
-            bot_mut.total_quote_amount -= fee.clone();
+            bot_mut.total_quote_amount -= U128C::from(fee.clone());
         }
         // reduce user's lock asset
         self.internal_reduce_locked_assets(&user, &token, &(U128C::from(fee.clone())));
@@ -109,11 +109,11 @@ impl GridBotContract {
 
     pub fn internal_update_bot_asset(bot: &mut GridBot, pair: &Pair, token_sell: AccountId, amount_sell: Balance, amount_buy: Balance) {
         if pair.base_token == token_sell {
-            bot.total_base_amount = bot.total_base_amount.checked_sub(amount_sell).expect("Base amount underflow");
-            bot.total_quote_amount = bot.total_quote_amount.checked_add(amount_buy).expect("Quote amount overflow");
+            bot.total_base_amount = bot.total_base_amount.checked_sub(U128C::from(amount_sell)).expect("Base amount underflow");
+            bot.total_quote_amount = bot.total_quote_amount.checked_add(U128C::from(amount_buy)).expect("Quote amount overflow");
         } else {
-            bot.total_base_amount = bot.total_base_amount.checked_add(amount_buy).expect("Base amount overflow");
-            bot.total_quote_amount = bot.total_quote_amount.checked_sub(amount_sell).expect("Quote amount underflow");
+            bot.total_base_amount = bot.total_base_amount.checked_add(U128C::from(amount_buy)).expect("Base amount overflow");
+            bot.total_quote_amount = bot.total_quote_amount.checked_sub(U128C::from(amount_sell)).expect("Quote amount underflow");
         }
     }
 
@@ -138,7 +138,7 @@ impl GridBotContract {
         // transfer to available asset
         self.internal_increase_asset(&user, &revenue_token, &(U128C::from(revenue.clone())));
         // sign to 0
-        self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = 0;
+        self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = U128C::from(0);
         return (revenue_token, U128C::from(revenue));
     }
 

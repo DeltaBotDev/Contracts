@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance};
+use near_sdk::{AccountId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
@@ -26,7 +26,6 @@ pub struct GridBot {
     pub user: AccountId,
     pub bot_id: String,
     pub closed: bool,
-    pub name: String,
     pub pair_id: String,
     pub grid_type: GridType,
     pub grid_sell_count: u16,
@@ -49,9 +48,9 @@ pub struct GridBot {
     /// real_stop_loss_price = stop_loss_price / 10^18
     pub stop_loss_price: U128C,
     pub valid_until_time: U128C,
-    pub total_quote_amount: Balance,
-    pub total_base_amount: Balance,
-    pub revenue: Balance,
+    pub total_quote_amount: U128C,
+    pub total_base_amount: U128C,
+    pub revenue: U128C,
 }
 
 impl Clone for GridBot {
@@ -61,7 +60,6 @@ impl Clone for GridBot {
             user: self.user.clone(),
             bot_id: self.bot_id.clone(),
             closed: self.closed.clone(),
-            name: self.name.clone(),
             pair_id: self.pair_id.clone(),
             grid_type: self.grid_type.clone(),
             grid_sell_count: self.grid_sell_count.clone(),

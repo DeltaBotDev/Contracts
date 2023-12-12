@@ -63,8 +63,8 @@ impl GridBotContract {
     pub fn new(owner_id: AccountId) -> Self {
         GridBotContract {
             owner_id: owner_id.clone(),
-            // 1%
             status: GridStatus::Running,
+            // 1%
             protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
             bot_map: Default::default(),
             order_map: Default::default(),

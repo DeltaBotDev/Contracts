@@ -75,7 +75,7 @@ impl FtContractHelper {
         user: &Account,
     ) -> Result<U128, workspaces::error::Error> {
         self.0
-            .call("ft_balance_of")
+            .call("get_balance")
             .args_json(json!({
                 "account_id": user.id()
             }))

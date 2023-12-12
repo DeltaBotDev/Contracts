@@ -16,4 +16,14 @@ impl GridBotContract {
         }
         return grid_bots;
     }
+
+    pub fn query_protocol_fee(&self, token: AccountId) -> U128C {
+        require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
+        return self.internal_get_protocol_fee(&token);
+    }
+
+    pub fn query_global_balance(&self, token: AccountId) -> U128C {
+        require!(self.global_balances_map.contains_key(&token), INVALID_TOKEN);
+        return self.internal_get_global_balance(&token);
+    }
 }

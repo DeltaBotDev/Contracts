@@ -39,7 +39,7 @@ impl GridBotContract {
         let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.as_u128());
         // add revenue
         let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
-        bot_mut.revenue += revenue;
+        bot_mut.revenue += U128C::from(revenue);
         // update bot asset
         GridBotContract::internal_update_bot_asset(bot_mut, &pair, taker_order.token_buy.clone(), taker_buy.as_u128(), taker_sell.as_u128());
 

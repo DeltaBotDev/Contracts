@@ -41,13 +41,20 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
 
     // create bot
-    check_success(gridbot_contract.create_bot(&maker_account, "test1".to_string(), pair_id.clone(), 1000, GridType::EqOffset, 0,
+    check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqOffset, 0,
                                               U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
                                               U128C::from(100000000), U128C::from(3000000000 as u128), true, 10, 15,
                                               U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
                                               U128C::from(220000)).await);
-    // query order
     let next_bot_id = format!("GRID:{}", "0".to_string());
+    // query bot
+    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+    println!("grid_bot:{}", grid_bot_str);
+    require!(grid_bot.total_base_amount == U128C::from(1000000000 as u128));
+    require!(grid_bot.total_quote_amount == U128C::from(31050000000 as u128));
+
+    // query order
     let order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 0).await?.unwrap();
     let order_string = serde_json::to_string(&(order_result.order)).unwrap();
     println!("order:{}", order_string);
@@ -87,6 +94,16 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         forward_or_reverse: true,
         level: 14,
     }];
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_eth{}", user_eth_balance.0.to_string());
     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
@@ -103,6 +120,25 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     // reversed order sell must be 100000000, buy must be 2140000000 + 10000000
     require!(reverse_order_result.order.amount_buy == forward_order_result.order.amount_sell + U128C::from(10000000 as u128));
 
+    // query bot
+    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+    println!("grid_bot after first forward:{}", grid_bot_str);
+    require!(grid_bot.total_base_amount == U128C::from(1100000000 as u128));
+    require!(grid_bot.total_quote_amount == U128C::from(28910000000 as u128));
+
+
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("after first forward global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after first forward maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after first forward maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after first forward taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after first forward taker user_eth{}", user_eth_balance.0.to_string());
+
     // buy ETH, take the reverse order
     let take_order = Order {
         order_id: "".to_string(),
@@ -118,21 +154,52 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         forward_or_reverse: false,
         level: 14,
     }];
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_eth{}", user_eth_balance.0.to_string());
     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
     println!("second reverse level 14 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000));
-    require!(forward_order_result.order.amount_sell == U128C::from(4280000000));
-    require!(forward_order_result.order.amount_buy == U128C::from(200000000));
+    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+    require!(forward_order_result.order.amount_sell == U128C::from(4280000000 as u128));
+    require!(forward_order_result.order.amount_buy == U128C::from(200000000 as u128));
 
     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
     println!("second reverse level 14 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(100000000));
-    require!(reverse_order_result.order.amount_sell == U128C::from(100000000));
-    require!(reverse_order_result.order.amount_buy == U128C::from(2150000000));
+    require!(reverse_order_result.order.filled == U128C::from(100000000 as u128));
+    require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
+    require!(reverse_order_result.order.amount_buy == U128C::from(2150000000 as u128));
+    // query bot
+    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+    println!("grid_bot after second reverse:{}", grid_bot_str);
+    require!(grid_bot.revenue == U128C::from(9900000 as u128));
+    require!(grid_bot.total_base_amount == U128C::from(1000000000 as u128));
+    require!(grid_bot.total_quote_amount == U128C::from(31059900000 as u128));
+    // query protocol fee
+    let protocol_fee_usdc = gridbot_contract.query_protocol_fee(usdc_token_contract.get_account_id()).await?.unwrap();
+    require!(protocol_fee_usdc == U128C::from(100000 as u128));
+
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("after second reverse:global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after second reverse:maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after second reverse:maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after second reverse:taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after second reverse:taker user_eth{}", user_eth_balance.0.to_string());
 
     // Partial filled
     let take_order = Order {
@@ -149,18 +216,65 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         forward_or_reverse: true,
         level: 14,
     }];
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("taker user_eth{}", user_eth_balance.0.to_string());
     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
     println!("Third Partial forward filled level 14 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(150000000));
+    require!(forward_order_result.order.filled == U128C::from(150000000 as u128));
 
     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 14).await?.unwrap();
     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
     println!("Third Partial forward filled level 14 reverse order:{}", order_string);
-    require!(reverse_order_result.order.amount_sell == U128C::from(150000000));
-    require!(reverse_order_result.order.amount_buy == U128C::from(3225000000));
+    require!(reverse_order_result.order.amount_sell == U128C::from(150000000 as u128));
+    require!(reverse_order_result.order.amount_buy == U128C::from(3225000000 as u128));
+
+    // query bot
+    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+    println!("grid_bot after third forward:{}", grid_bot_str);
+    require!(grid_bot.total_base_amount == U128C::from(1050000000 as u128));
+    require!(grid_bot.total_quote_amount == U128C::from(29989900000 as u128));
+
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("after third forward:global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after third forward:maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after third forward:maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after third forward:taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after third forward:taker user_eth{}", user_eth_balance.0.to_string());
+
+    // user claim revenue
+    check_success(gridbot_contract.claim(&maker_account, next_bot_id.clone()).await);
+    // query bot
+    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+    require!(grid_bot.revenue == U128C::from(0));
+
+    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+    println!("after claim:global_usdc{}", global_usdc.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after claim:maker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+    println!("after claim:maker user_eth{}", user_eth_balance.0.to_string());
+    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after claim:taker user_usdc{}", user_usdc_balance.0.to_string());
+    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+    println!("after claim:taker user_eth{}", user_eth_balance.0.to_string());
+
+    // to other user help claim revenue
 
     Ok(())
 }

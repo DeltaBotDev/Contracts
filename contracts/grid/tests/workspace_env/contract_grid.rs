@@ -3,7 +3,7 @@ use near_units::parse_near;
 use serde_json::json;
 use workspaces::{Account, Contract};
 use workspaces::result::ExecutionFinalResult;
-use grid::{GridType, Order, OrderKeyInfo, OrderResult, U128C};
+use grid::{GridBot, GridType, Order, OrderKeyInfo, OrderResult, U128C};
 use crate::*;
 
 pub struct GridBotHelper(pub Contract);
@@ -56,7 +56,7 @@ impl GridBotHelper {
             .await
     }
 
-    pub async fn create_bot(&self, caller: &Account, name: String, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
+    pub async fn create_bot(&self, caller: &Account, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
                             last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                             trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
                             entry_price: U128C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
@@ -64,7 +64,6 @@ impl GridBotHelper {
         caller
             .call(self.0.id(), "create_bot")
             .args_json(json!({
-                "name": name,
                 "pair_id": pair_id,
                 "slippage": slippage,
                 "grid_type": grid_type,
@@ -103,19 +102,19 @@ impl GridBotHelper {
             .await
     }
 
-    // pub async fn withdraw(&self, caller: &Account, token_id: &AccountId, withdraw_amount: u128, ) -> Result<ExecutionFinalResult, workspaces::error::Error> {
-    //     caller
-    //         .call(self.0.id(), "execute")
-    //         .args_json(json!({
-    //             "actions": vec![
-    //                 Action::Withdraw(asset_amount(token_id, withdraw_amount)),
-    //             ]
-    //         }))
-    //         .max_gas()
-    //         .deposit(1)
-    //         .transact()
-    //         .await
-    // }
+    pub async fn claim(&self, caller: &Account, bot_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start claim");
+        caller
+            .call(self.0.id(), "claim")
+            .args_json(json!({
+                "bot_id": bot_id,
+            }))
+            .gas(300_000_000_000_000)
+            // .deposit(1)
+            .transact()
+            .await
+    }
+
 }
 
 impl GridBotHelper {
@@ -145,5 +144,53 @@ impl GridBotHelper {
             .view()
             .await?
             .json::<Option<Vec<Order>>>()
+    }
+
+    pub async fn query_bot(&self, bot_id: String) -> Result<Option<GridBot>, workspaces::error::Error> {
+        log!("start query_bot");
+        self.0
+            .call("query_bot")
+            .args_json(json!({
+                "bot_id": bot_id,
+            }))
+            .view()
+            .await?
+            .json::<Option<GridBot>>()
+    }
+
+    pub async fn query_bots(&self, bot_ids: Vec<String>) -> Result<Option<Vec<GridBot>>, workspaces::error::Error> {
+        log!("start query_bots");
+        self.0
+            .call("query_bots")
+            .args_json(json!({
+                "bot_ids": bot_ids,
+            }))
+            .view()
+            .await?
+            .json::<Option<Vec<GridBot>>>()
+    }
+
+    pub async fn query_protocol_fee(&self, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+        log!("start query_protocol_fee");
+        self.0
+            .call("query_protocol_fee")
+            .args_json(json!({
+                "token": token,
+            }))
+            .view()
+            .await?
+            .json::<Option<U128C>>()
+    }
+
+    pub async fn query_global_balance(&self, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+        log!("start query_global_balance");
+        self.0
+            .call("query_global_balance")
+            .args_json(json!({
+                "token": token,
+            }))
+            .view()
+            .await?
+            .json::<Option<U128C>>()
     }
 }

@@ -86,12 +86,12 @@ impl FtContract {
                 msg,
             )
     }
-    pub fn get_balance(&self, account_id: AccountId) -> u128 {
-        self.balances.get(&account_id).unwrap_or(0)
+    pub fn get_balance(&self, account_id: AccountId) -> U128 {
+        U128::from(self.balances.get(&account_id).unwrap_or(0))
     }
 
-    pub fn get_total_supply(&self) -> u128 {
-        self.total_supply
+    pub fn get_total_supply(&self) -> U128 {
+        U128::from(self.total_supply)
     }
 }
 
