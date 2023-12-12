@@ -1,5 +1,7 @@
+use std::ops::Add;
 use near_sdk::require;
 use crate::*;
+use crate::big_decimal::{BigDecimal, U256};
 use crate::entity::GridType::EqOffset;
 
 impl GridBotContract {
@@ -16,24 +18,26 @@ impl GridBotContract {
     pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
-        let (mut maker_order, in_orderbook) = self.query_order(bot_id.clone(), forward_or_reverse, level);
+        let (maker_order, in_orderbook) = self.query_order(bot_id.clone(), forward_or_reverse, level);
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());
 
         // calculate
-        let (taker_sell, taker_buy, current_filled) = GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone());
-        maker_order.filled += current_filled;
+        let (taker_sell, taker_buy, current_filled, made_order) = GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone());
 
         // place into orderbook
         if !in_orderbook {
             self.internal_place_order(bot_id.clone(), maker_order.clone(), forward_or_reverse.clone(), level.clone());
         }
+        // update filled
+        let maker_order = self.internal_update_order_filled(bot_id.clone(), forward_or_reverse.clone(), level.clone(), current_filled);
+
         // place opposite order
-        let opposite_order = GridBotContract::internal_get_reserve_order(maker_order.clone(), bot.clone(), level.clone());
+        let opposite_order = GridBotContract::internal_get_opposite_order(&made_order, bot.clone(), forward_or_reverse.clone(), level.clone());
         self.internal_place_order(bot_id.clone(), opposite_order.clone(), !forward_or_reverse.clone(), level.clone());
 
         // calculate bot's revenue
-        let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order, opposite_order, current_filled.as_u128());
+        let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.as_u128());
         // add revenue
         let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
         bot_mut.revenue += revenue;
@@ -53,6 +57,14 @@ impl GridBotContract {
         return (taker_sell, taker_buy);
     }
 
+    pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U128C) -> Order {
+        let bot_orders = self.order_map.get_mut(&bot_id).unwrap();
+        let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
+        let order = orders.get_mut(level).unwrap();
+        order.filled += current_filled;
+        return order.clone();
+    }
+
     pub fn internal_check_order_match(maker_order: Order, taker_order: Order) {
         require!(maker_order.token_buy == taker_order.token_sell, INVALID_ORDER_TOKEN);
         require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
@@ -60,19 +72,19 @@ impl GridBotContract {
         require!(taker_order.amount_sell != U128C::from(0), INVALID_ORDER_AMOUNT);
         require!(taker_order.amount_buy != U128C::from(0), INVALID_ORDER_AMOUNT);
 
-        require!(taker_order.amount_sell/taker_order.amount_buy <= maker_order.amount_sell/maker_order.amount_buy, INVALID_PRICE);
+        require!(BigDecimal::from(taker_order.amount_sell.as_u128()) / BigDecimal::from(taker_order.amount_buy.as_u128()) >= BigDecimal::from(maker_order.amount_buy.as_u128()) / BigDecimal::from(maker_order.amount_sell.as_u128()), INVALID_PRICE);
     }
 
-    pub fn internal_calculate_matching(maker_order: Order, taker_order: Order) -> (U128C, U128C, U128C) {
+    pub fn internal_calculate_matching(maker_order: Order, taker_order: Order) -> (U128C, U128C, U128C, Order) {
         // calculate marker max amount
         let max_fill_sell;
         let max_fill_buy;
         if maker_order.fill_buy_or_sell {
             max_fill_buy = maker_order.amount_buy - maker_order.filled;
-            max_fill_sell = maker_order.amount_sell / maker_order.amount_buy * max_fill_buy;
+            max_fill_sell = U128C::from((U256C::from(maker_order.amount_sell.as_u128()) * U256C::from(max_fill_buy.as_u128()) / U256C::from(maker_order.amount_buy.as_u128())).as_u128());
         } else {
             max_fill_sell = maker_order.amount_sell - maker_order.filled;
-            max_fill_buy = maker_order.amount_buy / maker_order.amount_sell * max_fill_sell;
+            max_fill_buy = U128C::from((U256C::from(maker_order.amount_buy.as_u128()) * U256C::from(max_fill_sell.as_u128()) / U256C::from(maker_order.amount_sell.as_u128())).as_u128());
         }
         // calculate matching amount
         let taker_sell;
@@ -84,7 +96,7 @@ impl GridBotContract {
                 taker_sell = max_fill_buy;
             } else {
                 taker_buy = taker_order.amount_buy;
-                taker_sell = max_fill_buy / max_fill_sell * taker_buy;
+                taker_sell = U128C::from((U256C::from(max_fill_buy.as_u128()) * U256C::from(taker_buy.as_u128()) / U256C::from(max_fill_sell.as_u128())).as_u128());
             }
         } else {
             if taker_order.amount_sell >= max_fill_buy {
@@ -93,7 +105,7 @@ impl GridBotContract {
                 taker_sell = max_fill_buy;
             } else {
                 taker_sell = taker_order.amount_sell;
-                taker_buy = max_fill_sell / max_fill_buy * taker_sell;
+                taker_buy = U128C::from((U256C::from(max_fill_sell.as_u128()) * U256C::from(taker_sell.as_u128()) / U256C::from(max_fill_buy.as_u128())).as_u128());
             }
         }
         let current_filled= if maker_order.fill_buy_or_sell {
@@ -101,52 +113,78 @@ impl GridBotContract {
         } else {
             taker_buy.clone()
         };
-        return (taker_sell, taker_buy, current_filled);
+        let mut made_order = maker_order.clone();
+        made_order.amount_sell = taker_buy.clone();
+        made_order.amount_buy = taker_sell.clone();
+        made_order.filled = U128C::from(0);
+
+        return (taker_sell, taker_buy, current_filled, made_order);
     }
 
     pub fn internal_order_is_empty(order: &Order) -> bool {
         return order.amount_buy == U128C::from(0) || order.amount_sell == U128C::from(0) || order.order_id == ""
     }
 
-    pub fn internal_get_reserve_order(maker_order: Order, bot: GridBot, level: usize) -> Order {
+    pub fn internal_get_opposite_order(made_order: &Order, bot: GridBot, forward_or_reverse: bool, level: usize) -> Order {
         let mut reverse_order = Order{
-            order_id: maker_order.order_id.clone(),
-            token_sell: maker_order.token_buy.clone(),
-            token_buy: maker_order.token_sell.clone(),
+            order_id: made_order.order_id.clone(),
+            token_sell: made_order.token_buy.clone(),
+            token_buy: made_order.token_sell.clone(),
             amount_sell: U128C::from(0),
             amount_buy: U128C::from(0),
-            fill_buy_or_sell: !maker_order.fill_buy_or_sell.clone(),
+            fill_buy_or_sell: !made_order.fill_buy_or_sell.clone(),
             filled: U128C::from(0),
         };
-        if maker_order.fill_buy_or_sell {
+        if made_order.fill_buy_or_sell {
             // reverse_order fill sell, fixed sell
-            reverse_order.amount_sell = maker_order.amount_buy.clone();
+            reverse_order.amount_sell = made_order.amount_buy.clone();
             reverse_order.amount_buy = if bot.grid_type == EqOffset {
                 let fixed_amount_sell = if bot.grid_buy_count > level.clone() as u16 {
-                    // buy grid and fixed sell => fixed quote
-                    bot.first_quote_amount
+                    // buy grid and marker is forward and maker fixed buy => fixed base
+                    // buy grid and marker is reverse and maker fixed buy => forward fixed sell => fixed quote
+                    if forward_or_reverse {
+                        bot.first_base_amount
+                    } else {
+                        bot.first_quote_amount
+                    }
                 } else {
-                    // sell grid and fixed sell => fixed base
-                    bot.first_base_amount
+                    // sell grid and maker is forward and maker fixed buy => fixed quote
+                    // sell grid and maker is reverse and maker fixed buy => forward fixed sell => fixed base
+                    if forward_or_reverse {
+                        bot.last_quote_amount
+                    } else {
+                        bot.last_base_amount
+                    }
                 };
-                maker_order.amount_sell.clone() + bot.grid_offset.clone() / fixed_amount_sell * reverse_order.amount_sell
+                made_order.amount_sell.clone() + U128C::from((U256C::from(bot.grid_offset.clone().as_u128()) * U256C::from(reverse_order.amount_sell.as_u128()) / U256C::from(fixed_amount_sell.as_u128())).as_u128())
             } else {
-                maker_order.amount_sell.clone() * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
+                U128C::from((U256C::from(made_order.amount_sell.clone().as_u128()) * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
             };
         } else {
             // reverse_order fill buy, fixed buy
-            reverse_order.amount_buy = maker_order.amount_sell.clone();
+            reverse_order.amount_buy = made_order.amount_sell.clone();
             reverse_order.amount_sell = if bot.grid_type == EqOffset {
                 let fixed_amount_buy = if bot.grid_buy_count > level.clone() as u16 {
-                    // buy grid and fixed buy => fixed base
-                    bot.first_base_amount
+                    // buy grid and maker is forward and maker fixed sell => fixed quote
+                    // buy grid and maker is reverse and maker fixed sell => forward fixed buy => fixed base
+                    if forward_or_reverse {
+                        bot.first_quote_amount
+                    } else {
+                        bot.first_base_amount
+                    }
                 } else {
                     // sell grid and fixed buy => fixed quote
-                    bot.first_quote_amount
+                    // sell grid and maker is forward and maker fixed sell => fixed base
+                    // sell grid and maker is reverse and maker fixed sell => forward fixed buy => fixed quote
+                    if forward_or_reverse {
+                        bot.last_base_amount
+                    } else {
+                        bot.last_quote_amount
+                    }
                 };
-                maker_order.amount_buy.clone() - bot.grid_offset.clone() / fixed_amount_buy * reverse_order.amount_buy
+                made_order.amount_buy.clone() - U128C::from((U256::from(bot.grid_offset.clone().as_u128()) * U256::from(reverse_order.amount_buy.as_u128()) / U256::from(fixed_amount_buy.as_u128())).as_u128())
             } else {
-                maker_order.amount_buy.clone() * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
+                U128C::from((U256::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
             };
         }
         return reverse_order;
@@ -162,21 +200,21 @@ impl GridBotContract {
         if opposite_order.fill_buy_or_sell {
             // current_filled token is forward_order's buy token
             // revenue token is forward_order's sell token
-            let forward_sold = current_filled.clone() * opposite_order.amount_sell.as_u128() / opposite_order.amount_buy.as_u128();
-            let reverse_bought = current_filled.clone() * order.amount_buy.as_u128() / order.amount_sell.as_u128();
+            let forward_sold = (U256C::from(current_filled.clone()) * U256C::from(opposite_order.amount_sell.as_u128()) / U256C::from(opposite_order.amount_buy.as_u128())).as_u128();
+            let reverse_bought = (U256C::from(current_filled.clone()) * U256C::from(order.amount_buy.as_u128()) / U256C::from(order.amount_sell.as_u128())).as_u128();
             require!(reverse_bought >= forward_sold, INVALID_REVENUE);
             revenue_token = opposite_order.token_sell;
             revenue = reverse_bought - forward_sold;
         } else {
             // current_filled token is forward_order's sell token
             // revenue token is forward_order's buy token
-            let forward_bought = current_filled.clone() * opposite_order.amount_buy.as_u128() / opposite_order.amount_sell.as_u128();
-            let reverse_sold = current_filled.clone() * order.amount_sell.as_u128() / order.amount_buy.as_u128();
+            let forward_bought = (U256C::from(current_filled.clone()) * U256C::from(opposite_order.amount_buy.as_u128()) / U256C::from(opposite_order.amount_sell.as_u128())).as_u128();
+            let reverse_sold = (U256C::from(current_filled.clone()) * U256C::from(order.amount_sell.as_u128()) / U256C::from(order.amount_buy.as_u128())).as_u128();
             require!(forward_bought >= reverse_sold, INVALID_REVENUE);
             revenue_token = opposite_order.token_buy;
             revenue = forward_bought - reverse_sold;
         };
-        let protocol_fee = revenue * self.protocol_fee_rate.clone() / PROTOCOL_FEE_DENOMINATOR;
+        let protocol_fee = (U256C::from(revenue) * U256C::from(self.protocol_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR)).as_u128();
         revenue -= protocol_fee;
         return (revenue_token, revenue.clone(), protocol_fee.clone());
     }

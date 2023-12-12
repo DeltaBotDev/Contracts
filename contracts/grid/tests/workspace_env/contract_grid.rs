@@ -1,0 +1,149 @@
+use near_sdk::AccountId;
+use near_units::parse_near;
+use serde_json::json;
+use workspaces::{Account, Contract};
+use workspaces::result::ExecutionFinalResult;
+use grid::{GridType, Order, OrderKeyInfo, OrderResult, U128C};
+use crate::*;
+
+pub struct GridBotHelper(pub Contract);
+
+impl GridBotHelper {
+    pub async fn storage_deposit(&self, account: &Account) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start storage_deposit");
+        self.0
+            .call("storage_deposit")
+            .args_json(json!({
+                "account_id": Some(account.id()),
+                "registration_only": Option::<bool>::None,
+            }))
+            .gas(20_000_000_000_000)
+            .deposit(parse_near!("1 N"))
+            .transact()
+            .await
+    }
+
+    pub async fn deposit(&self, token_contract: &FtContractHelper, caller: &Account, amount: u128) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start deposit");
+        return token_contract.ft_transfer_call(caller, &(AccountId::from_str(self.0.id()).expect("Invalid AccountId")), amount, "".to_string()).await;
+    }
+
+    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start register_pair");
+        caller
+            .call(self.0.id(), "register_pair")
+            .args_json(json!({
+                "base_token": *base_token,
+                "quote_token": *quote_token,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn set_oracle_price(&self, caller: &Account, price: &U128C, pair_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start set_oracle_price");
+        caller
+            .call(self.0.id(), "set_oracle_price")
+            .args_json(json!({
+                "price": *price,
+                "pair_id": pair_id,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn create_bot(&self, caller: &Account, name: String, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
+                            last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
+                            trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
+                            entry_price: U128C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start create_bot");
+        caller
+            .call(self.0.id(), "create_bot")
+            .args_json(json!({
+                "name": name,
+                "pair_id": pair_id,
+                "slippage": slippage,
+                "grid_type": grid_type,
+                "grid_rate": grid_rate,
+                "grid_offset": grid_offset,
+                "first_base_amount": first_base_amount,
+                "first_quote_amount": first_quote_amount,
+                "last_base_amount": last_base_amount,
+                "last_quote_amount": last_quote_amount,
+                "fill_base_or_quote": fill_base_or_quote,
+                "grid_sell_count": grid_sell_count,
+                "grid_buy_count": grid_buy_count,
+                "trigger_price": trigger_price,
+                "take_profit_price": take_profit_price,
+                "stop_loss_price": stop_loss_price,
+                "valid_until_time": valid_until_time,
+                "entry_price": entry_price,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn take_orders(&self, caller: &Account, order: &Order, maker_orders: Vec<OrderKeyInfo>) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start take_orders");
+        caller
+            .call(self.0.id(), "take_orders")
+            .args_json(json!({
+                "take_order": order,
+                "maker_orders": maker_orders,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    // pub async fn withdraw(&self, caller: &Account, token_id: &AccountId, withdraw_amount: u128, ) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    //     caller
+    //         .call(self.0.id(), "execute")
+    //         .args_json(json!({
+    //             "actions": vec![
+    //                 Action::Withdraw(asset_amount(token_id, withdraw_amount)),
+    //             ]
+    //         }))
+    //         .max_gas()
+    //         .deposit(1)
+    //         .transact()
+    //         .await
+    // }
+}
+
+impl GridBotHelper {
+    pub async fn query_order(&self, bot_id: String, forward_or_reverse: bool, level: usize) -> Result<Option<OrderResult>, workspaces::error::Error> {
+        log!("start query_order");
+        self.0
+            .call("query_order")
+            .args_json(json!({
+                "bot_id": bot_id,
+                "forward_or_reverse": forward_or_reverse,
+                "level": level,
+            }))
+            .view()
+            .await?
+            .json::<Option<OrderResult>>()
+    }
+
+    pub async fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Result<Option<Vec<Order>>, workspaces::error::Error> {
+        log!("start query_orders");
+        self.0
+            .call("query_orders")
+            .args_json(json!({
+                "bot_ids": bot_ids,
+                "forward_or_reverses": forward_or_reverses,
+                "levels": levels,
+            }))
+            .view()
+            .await?
+            .json::<Option<Vec<Order>>>()
+    }
+}

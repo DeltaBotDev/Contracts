@@ -1,13 +1,14 @@
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
-use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
-// use near_contract_standards::fungible_token::events;
-// use near_contract_standards::non_fungible_token::TokenId;
 use near_sdk::{AccountId, Balance, env, is_promise_success, log, Promise, PromiseError, PromiseOrValue, require};
 use crate::*;
 use near_sdk::json_types::U128;
 use near_sdk::{ext_contract, near_bindgen};
-// use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use crate::events::emit;
+
+#[ext_contract(ext_fungible_token)]
+pub trait FungibleToken {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+}
 
 #[near_bindgen]
 impl FungibleTokenReceiver for GridBotContract {
@@ -22,7 +23,7 @@ impl FungibleTokenReceiver for GridBotContract {
         let token_in = env::predecessor_account_id();
         require!(self.global_balances_map.contains_key(&(token_in.clone())), INVALID_TOKEN);
         let amount: u128 = amount.into();
-        log!("Deposit token:{}, amount:{}", token_in.clone(), amount.clone());
+        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone());
         // add amount to user
         self.internal_increase_asset(&sender_id, &token_in, &(U128C::from(amount.clone())));
         // add amount to global
@@ -33,61 +34,58 @@ impl FungibleTokenReceiver for GridBotContract {
 
 impl GridBotContract {
     pub fn internal_ft_transfer(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
-        ext_fungible_token::ft_transfer(
-            account_id.clone(),
-            amount.into(),
-            None,
-            token_id.clone(),
-            // must set 1
-            ONE_YOCTO,
-            GAS_FOR_FT_TRANSFER,
-        )
-            .then(ext_self::after_ft_transfer(
+        ext_fungible_token::ext(token_id.clone())
+            .with_attached_deposit(ONE_YOCTO)
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .ft_transfer(
                 account_id.clone(),
-                token_id.clone(),
                 amount.into(),
-                env::current_account_id(),
-                NO_DEPOSIT,
-                GAS_FOR_AFTER_FT_TRANSFER,
-            ))
+                None,
+            ).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_ft_transfer(
+                    account_id.clone(),
+                    token_id.clone(),
+                    amount.into(),
+                )
+        )
     }
     pub fn internal_ft_transfer_protocol_fee(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
-        ext_fungible_token::ft_transfer(
-            account_id.clone(),
-            amount.into(),
-            None,
-            token_id.clone(),
-            // must set 1
-            ONE_YOCTO,
-            GAS_FOR_FT_TRANSFER,
-        )
-            .then(ext_self::after_ft_transfer_protocol_fee(
+        ext_fungible_token::ext(token_id.clone())
+            .with_attached_deposit(ONE_YOCTO)
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .ft_transfer(
                 account_id.clone(),
-                token_id.clone(),
                 amount.into(),
-                env::current_account_id(),
-                NO_DEPOSIT,
-                GAS_FOR_AFTER_FT_TRANSFER,
-            ))
+                None,
+            ).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_ft_transfer_protocol_fee(
+                    account_id.clone(),
+                    token_id.clone(),
+                    amount.into(),
+                )
+        )
     }
     pub fn internal_ft_transfer_unowned_asset(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
-        ext_fungible_token::ft_transfer(
-            account_id.clone(),
-            amount.into(),
-            None,
-            token_id.clone(),
-            // must set 1
-            ONE_YOCTO,
-            GAS_FOR_FT_TRANSFER,
-        )
-            .then(ext_self::after_ft_transfer_unowned_asset(
+        ext_fungible_token::ext(token_id.clone())
+            .with_attached_deposit(ONE_YOCTO)
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .ft_transfer(
                 account_id.clone(),
-                token_id.clone(),
                 amount.into(),
-                env::current_account_id(),
-                NO_DEPOSIT,
-                GAS_FOR_AFTER_FT_TRANSFER,
-            ))
+                None,
+            ).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_ft_transfer_unowned_asset(
+                    account_id.clone(),
+                    token_id.clone(),
+                    amount.into(),
+                )
+        )
     }
 }
 
@@ -100,16 +98,6 @@ trait ExtSelf {
     fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
     fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
-}
-
-trait ExtSelf {
-    fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
-                         -> bool;
-    fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
-                                      -> bool;
-    fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
-                                       -> bool;
-    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, last_result: Result<U128, PromiseError>);
 }
 
 #[near_bindgen]
@@ -176,7 +164,7 @@ impl ExtSelf for GridBotContract {
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
             self.internal_withdraw_unowned_asset(&(self.owner_id.clone()), &token_id, U128C::from(can_withdraw_amount));
         } else {
-            // TODO print log
+            log!("withdraw_unowned_asset error");
         }
     }
 }

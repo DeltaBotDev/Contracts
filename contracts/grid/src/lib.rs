@@ -6,7 +6,6 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
 use std::collections::HashMap;
-// use std::panic::PanicInfo;
 
 mod utils;
 mod constants;
@@ -30,8 +29,7 @@ mod owner;
 pub use crate::constants::*;
 pub use crate::errors::*;
 pub use crate::utils::*;
-pub use crate::entity::{GridBot, Order};
-use crate::entity::{GridStatus, OraclePrice, Pair};
+pub use crate::entity::*;
 
 // near_sdk::setup_alloc!();
 // near_sdk::wee_alloc!();
@@ -64,7 +62,7 @@ impl GridBotContract {
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
         GridBotContract {
-            owner_id: owner_id.into(),
+            owner_id: owner_id.clone(),
             // 1%
             status: GridStatus::Running,
             protocol_fee_rate: DEFAULT_PROTOCOL_FEE,

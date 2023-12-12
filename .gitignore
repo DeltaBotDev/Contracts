@@ -1,2 +1,4 @@
 .idea/**
 contracts/grid/target/**
+contracts/grid/res/**
+contracts/common/target/**

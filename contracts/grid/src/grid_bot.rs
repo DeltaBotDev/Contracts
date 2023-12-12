@@ -2,18 +2,19 @@ use crate::*;
 use near_sdk::{assert_one_yocto, Gas, near_bindgen, Promise, require};
 use serde_json::json;
 use crate::entity::{GridType, OrderKeyInfo};
-use crate::token::ext_self;
 
 #[near_bindgen]
 impl GridBotContract {
 
+    #[payable]
     pub fn create_bot(&mut self, name:String, pair_id: String, slippage: u16, grid_type: GridType,
                       grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
-                      entry_price: U128C) {
+                      entry_price: U128C) -> String {
         assert_one_yocto();
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
+        require!(last_quote_amount / last_base_amount > first_quote_amount / first_base_amount, INVALID_FIRST_OR_LAST_AMOUNT);
         // got oracle price
         require!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , ORACLE_PRICE_EXCEPTION);
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
@@ -36,7 +37,8 @@ impl GridBotContract {
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
         // initial orders space
         let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
-        self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
+        // self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
+        self.order_map.insert(next_bot_id.clone(), vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]);
 
         // create bot
         let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, name, pair_id, grid_type,
@@ -50,8 +52,10 @@ impl GridBotContract {
 
         // insert bot
         self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
+        return next_bot_id.clone();
     }
 
+    #[payable]
     pub fn close_bot(&mut self, bot_id: String) {
         assert_one_yocto();
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
@@ -78,6 +82,7 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
     }
 
+    #[payable]
     pub fn take_orders(&mut self, take_order: &mut Order, maker_orders: Vec<OrderKeyInfo>) {
         assert_one_yocto();
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
@@ -123,6 +128,7 @@ impl GridBotContract {
         }
     }
 
+    #[payable]
     pub fn withdraw(&mut self, token: AccountId) {
         assert_one_yocto();
         let user = env::predecessor_account_id();
@@ -132,6 +138,7 @@ impl GridBotContract {
 
     //################################################## Owner #####################################
 
+    #[payable]
     pub fn withdraw_protocol_fee(&mut self, token: AccountId) {
         self.assert_owner();
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
@@ -139,6 +146,7 @@ impl GridBotContract {
         self.internal_withdraw_protocol_fee(&(self.owner_id.clone()), &token, protocol_fee);
     }
 
+    #[payable]
     pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
         self.assert_owner();
         Promise::new(token.clone())
@@ -149,28 +157,33 @@ impl GridBotContract {
                 Gas(0),
             )
             .then(
-                ext_self::after_ft_balance_of_for_withdraw_unowned_asset(self.owner_id.clone(),
-                                              token.clone(),
-                                              NO_DEPOSIT,
-                                              GAS_FOR_AFTER_FT_TRANSFER)
+                Self::ext(self.owner_id.clone())
+                    .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                    .after_ft_balance_of_for_withdraw_unowned_asset(
+                        token.clone(),
+                    )
             );
     }
 
+    #[payable]
     pub fn pause(&mut self) {
         self.assert_owner();
         self.status = GridStatus::Paused;
     }
 
+    #[payable]
     pub fn start(&mut self) {
         self.assert_owner();
         self.status = GridStatus::Running;
     }
 
+    #[payable]
     pub fn shutdown(&mut self) {
         self.assert_owner();
         self.status = GridStatus::Shutdown;
     }
 
+    #[payable]
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId) {
         self.assert_owner();
         require!(base_token != quote_token, INVALID_TOKEN);
@@ -191,9 +204,11 @@ impl GridBotContract {
     }
 
     // TODO Test
+    #[payable]
     pub fn set_oracle_price(&mut self, price: U128C, pair_id: String) {
+        self.assert_owner();
         let price_info = OraclePrice {
-            valid_timestamp: env::block_timestamp() + 3600,
+            valid_timestamp: env::block_timestamp_ms() + 3600000,
             price,
         };
         self.oracle_price_map.insert(pair_id, price_info);

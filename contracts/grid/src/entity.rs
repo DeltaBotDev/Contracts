@@ -4,7 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 use crate::utils::{U128C};
 
-#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum GridStatus {
     Running = 0,
@@ -97,7 +97,20 @@ pub struct Order {
     pub fill_buy_or_sell: bool,
     pub filled: U128C,
 }
-
+impl Default for Order {
+    fn default() -> Self {
+        Order {
+            order_id: "".to_string(),
+            // TODO
+            token_sell: AccountId::new_unchecked("zeromain.near".to_string()),
+            token_buy: AccountId::new_unchecked("zeromain.near".to_string()),
+            amount_sell: Default::default(),
+            amount_buy: Default::default(),
+            fill_buy_or_sell: false,
+            filled: Default::default(),
+        }
+    }
+}
 impl Clone for Order {
     fn clone(&self) -> Self {
         Order {
@@ -106,7 +119,7 @@ impl Clone for Order {
             token_buy: self.token_buy.clone(),
             amount_sell: self.amount_sell.clone(),
             amount_buy: self.amount_buy.clone(),
-            fill_buy_or_sell: self.fill_buy_or_sell,
+            fill_buy_or_sell: self.fill_buy_or_sell.clone(),
             filled: self.filled.clone(),
         }
     }
@@ -119,7 +132,12 @@ pub struct OrderKeyInfo {
     pub forward_or_reverse: bool,
     pub level: usize,
 }
-
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OrderResult {
+    pub order: Order,
+    pub flag: bool,
+}
 impl Clone for OrderKeyInfo {
     fn clone(&self) -> Self {
         OrderKeyInfo {

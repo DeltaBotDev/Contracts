@@ -13,16 +13,16 @@ impl GridBotContract {
         require!(bot.active.clone(), BOT_DISABLE);
         require!(self.pair_map.contains_key(&(bot.pair_id.clone())), INVALID_PAIR_ID);
         // check timestamp
-        require!(bot.valid_until_time >= U128C::from(env::block_timestamp()), BOT_EXPIRED);
+        require!(bot.valid_until_time >= U128C::from(env::block_timestamp_ms()), BOT_EXPIRED);
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse { &bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &bot_orders[REVERSE_ORDERS_INDEX.clone()] };
         // check order
         if GridBotContract::internal_order_is_empty(&(orders[level])) {
             // The current grid order has not been placed yet
             let pair = self.pair_map.get(&(bot.pair_id.clone())).unwrap();
-            return (GridBotContract::internal_get_first_forward_order(bot.clone(), pair.clone(), level.clone()), false);
+            return ((GridBotContract::internal_get_first_forward_order(bot.clone(), pair.clone(), level.clone())), false);
         }
-        return (orders[level.clone()].clone(), true);
+        return ((orders[level.clone()].clone()), true);
     }
 
     pub fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Vec<Order> {
@@ -37,7 +37,7 @@ impl GridBotContract {
         return orders;
     }
 
-    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C, U128C) {
+    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C, U128C, Order) {
         let (maker_order, _) = self.query_order(bot_id, forward_or_reverse, level);
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());

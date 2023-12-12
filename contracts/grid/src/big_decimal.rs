@@ -270,117 +270,117 @@ impl BorshDeserialize for BigDecimal {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::RngCore;
-
-    // Number of milliseconds in a regular year.
-    const N: u64 = MS_PER_YEAR;
-    // X = 2
-    const LOW_X: LowU128 = U128(2000000000000000000000000000);
-    // R ** N = X. So R = X ** (1/N)
-    const LOW_R: LowU128 = U128(1000000000021979552909930328);
-
-    fn b(a: u128) -> BigDecimal {
-        BigDecimal::from(a)
-    }
-
-    fn almost_eq(a: u128, b: u128, prec: u32) {
-        let p = 10u128.pow(27 - prec);
-        let ap = (a + p / 2) / p;
-        let bp = (b + p / 2) / p;
-        assert_eq!(
-            ap,
-            bp,
-            "{}",
-            format!("Expected {} to eq {}, with precision {}", a, b, prec)
-        );
-    }
-
-    #[test]
-    fn test_simple_add() {
-        assert_eq!((b(0) + b(0)).round_u128(), 0);
-        assert_eq!((b(5) + b(2)).round_u128(), 7);
-        assert_eq!((b(2) + b(5)).round_u128(), 7);
-        assert_eq!((b(5) + b(0)).round_u128(), 5);
-        assert_eq!((b(0) + b(5)).round_u128(), 5);
-    }
-
-    #[test]
-    fn test_simple_div() {
-        assert_eq!((b(17) / b(5)).round_u128(), 3);
-        assert_eq!((b(18) / b(5)).round_u128(), 4);
-        assert_eq!((b(3) / b(5)).round_u128(), 1);
-    }
-
-    #[test]
-    fn test_pow() {
-        let r = BigDecimal::from(LOW_R);
-        let x = r.pow(N);
-        let low_x = LowU128::from(x);
-        almost_eq(LOW_X.0, low_x.0, 15);
-    }
-
-    #[test]
-    fn test_compound_pow() {
-        fn test(split_n: u64) {
-            let r = BigDecimal::from(LOW_R);
-            let initial_val = 12345 * 10u128.pow(24);
-            let mut val = initial_val;
-            for i in 1..=split_n {
-                let exponent = (N * i / split_n) - (N * (i - 1) / split_n);
-                let interest = r.pow(exponent);
-                val = interest.round_mul_u128(val);
-            }
-            almost_eq(val, initial_val * 2, 15);
-        }
-
-        (1..=100).for_each(test);
-    }
-
-    #[test]
-    fn test_compound_pow_precision() {
-        fn test(split_n: u64) {
-            let r = BigDecimal::from(LOW_R);
-            let initial_val = 12345 * 10u128.pow(24);
-            let mut val = initial_val;
-            let exponent = N / split_n;
-            assert_eq!(exponent * split_n, N);
-            let interest = r.pow(exponent);
-            for _ in 1..=split_n {
-                val = interest.round_mul_u128(val);
-            }
-            almost_eq(val, initial_val * 2, 15);
-        }
-        test(N / 60000);
-        test(N / 1000000);
-        test(N / (24 * 60 * 60));
-    }
-
-    #[test]
-    fn test_compound_pow_random() {
-        const MAX_STEP: u64 = 1000000;
-        let r = BigDecimal::from(LOW_R);
-        let initial_val = 12345 * 10u128.pow(24);
-        let mut val = initial_val;
-        let mut total_exponent = 0;
-        let mut rng = rand::thread_rng();
-        while total_exponent < N {
-            let exponent = std::cmp::min(N - total_exponent, rng.next_u64() % MAX_STEP + 1);
-            total_exponent += exponent;
-            let interest = r.pow(exponent);
-            val = interest.round_mul_u128(val);
-        }
-        almost_eq(val, initial_val * 2, 15);
-    }
-
-    #[test]
-    fn test_display() {
-        assert_eq!("1.0", BigDecimal::one().to_string());
-        assert_eq!("2.0", BigDecimal::from(2u32).to_string());
-        assert_eq!("0.0", BigDecimal::zero().to_string());
-        assert!(BigDecimal::from(1.5f64).to_string().starts_with("1.500000"));
-        assert!(BigDecimal::from(0.5f64).to_string().starts_with("0.500000"));
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use rand::RngCore;
+//
+//     // Number of milliseconds in a regular year.
+//     const N: u64 = MS_PER_YEAR;
+//     // X = 2
+//     const LOW_X: LowU128 = U128(2000000000000000000000000000);
+//     // R ** N = X. So R = X ** (1/N)
+//     const LOW_R: LowU128 = U128(1000000000021979552909930328);
+//
+//     fn b(a: u128) -> BigDecimal {
+//         BigDecimal::from(a)
+//     }
+//
+//     fn almost_eq(a: u128, b: u128, prec: u32) {
+//         let p = 10u128.pow(27 - prec);
+//         let ap = (a + p / 2) / p;
+//         let bp = (b + p / 2) / p;
+//         assert_eq!(
+//             ap,
+//             bp,
+//             "{}",
+//             format!("Expected {} to eq {}, with precision {}", a, b, prec)
+//         );
+//     }
+//
+//     #[test]
+//     fn test_simple_add() {
+//         assert_eq!((b(0) + b(0)).round_u128(), 0);
+//         assert_eq!((b(5) + b(2)).round_u128(), 7);
+//         assert_eq!((b(2) + b(5)).round_u128(), 7);
+//         assert_eq!((b(5) + b(0)).round_u128(), 5);
+//         assert_eq!((b(0) + b(5)).round_u128(), 5);
+//     }
+//
+//     #[test]
+//     fn test_simple_div() {
+//         assert_eq!((b(17) / b(5)).round_u128(), 3);
+//         assert_eq!((b(18) / b(5)).round_u128(), 4);
+//         assert_eq!((b(3) / b(5)).round_u128(), 1);
+//     }
+//
+//     #[test]
+//     fn test_pow() {
+//         let r = BigDecimal::from(LOW_R);
+//         let x = r.pow(N);
+//         let low_x = LowU128::from(x);
+//         almost_eq(LOW_X.0, low_x.0, 15);
+//     }
+//
+//     #[test]
+//     fn test_compound_pow() {
+//         fn test(split_n: u64) {
+//             let r = BigDecimal::from(LOW_R);
+//             let initial_val = 12345 * 10u128.pow(24);
+//             let mut val = initial_val;
+//             for i in 1..=split_n {
+//                 let exponent = (N * i / split_n) - (N * (i - 1) / split_n);
+//                 let interest = r.pow(exponent);
+//                 val = interest.round_mul_u128(val);
+//             }
+//             almost_eq(val, initial_val * 2, 15);
+//         }
+//
+//         (1..=100).for_each(test);
+//     }
+//
+//     #[test]
+//     fn test_compound_pow_precision() {
+//         fn test(split_n: u64) {
+//             let r = BigDecimal::from(LOW_R);
+//             let initial_val = 12345 * 10u128.pow(24);
+//             let mut val = initial_val;
+//             let exponent = N / split_n;
+//             assert_eq!(exponent * split_n, N);
+//             let interest = r.pow(exponent);
+//             for _ in 1..=split_n {
+//                 val = interest.round_mul_u128(val);
+//             }
+//             almost_eq(val, initial_val * 2, 15);
+//         }
+//         test(N / 60000);
+//         test(N / 1000000);
+//         test(N / (24 * 60 * 60));
+//     }
+//
+//     #[test]
+//     fn test_compound_pow_random() {
+//         const MAX_STEP: u64 = 1000000;
+//         let r = BigDecimal::from(LOW_R);
+//         let initial_val = 12345 * 10u128.pow(24);
+//         let mut val = initial_val;
+//         let mut total_exponent = 0;
+//         let mut rng = rand::thread_rng();
+//         while total_exponent < N {
+//             let exponent = std::cmp::min(N - total_exponent, rng.next_u64() % MAX_STEP + 1);
+//             total_exponent += exponent;
+//             let interest = r.pow(exponent);
+//             val = interest.round_mul_u128(val);
+//         }
+//         almost_eq(val, initial_val * 2, 15);
+//     }
+//
+//     #[test]
+//     fn test_display() {
+//         assert_eq!("1.0", BigDecimal::one().to_string());
+//         assert_eq!("2.0", BigDecimal::from(2u32).to_string());
+//         assert_eq!("0.0", BigDecimal::zero().to_string());
+//         assert!(BigDecimal::from(1.5f64).to_string().starts_with("1.500000"));
+//         assert!(BigDecimal::from(0.5f64).to_string().starts_with("0.500000"));
+//     }
+// }

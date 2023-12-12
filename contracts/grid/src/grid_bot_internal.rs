@@ -35,7 +35,7 @@ impl GridBotContract {
             return false;
         }
         let price_info = self.oracle_price_map.get(&pair_id).unwrap();
-        if price_info.valid_timestamp < env::block_timestamp() {
+        if price_info.valid_timestamp < env::block_timestamp_ms() {
             // oracle price expired
             return false;
         }

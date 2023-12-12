@@ -1,0 +1,17 @@
+[package]
+name = "common"
+version = "0.1.0"
+authors = ["zero@ref.finance"]
+edition = "2018"
+
+[dependencies]
+near-sdk = "4.1.1"
+near-contract-standards = "4.1.1"
+near-sys = "0.2.0"
+
+[lib]
+crate-type = ["cdylib","rlib"]
+
+[workspace]
+members = [
+]
