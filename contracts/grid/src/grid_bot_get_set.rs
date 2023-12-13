@@ -12,6 +12,12 @@ impl GridBotContract {
             .unwrap_or(U128C::from(0));
     }
 
+    pub fn internal_get_user_locked_balance(&self, user: &AccountId, token: &AccountId) -> U128C {
+        return self.user_locked_balances_map.get(user)
+            .and_then(|balances| balances.get(token).cloned())
+            .unwrap_or(U128C::from(0));
+    }
+
     pub fn internal_get_global_balance(&self, token: &AccountId) -> U128C {
         if !self.global_balances_map.contains_key(token) {
             return U128C::from(0);
@@ -20,6 +26,9 @@ impl GridBotContract {
     }
 
     pub fn internal_get_protocol_fee(&self, token: &AccountId) -> U128C {
+        if !self.protocol_fee_map.contains_key(token) {
+            return U128C::from(0);
+        }
         return self.protocol_fee_map.get(token).unwrap().clone();
     }
 

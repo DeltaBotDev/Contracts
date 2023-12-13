@@ -97,7 +97,7 @@ trait ExtSelf {
                          -> bool;
     fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
-    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
+    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, to_user: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
 }
 
 #[near_bindgen]
@@ -157,12 +157,12 @@ impl ExtSelf for GridBotContract {
     }
 
     #[private]
-    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, #[callback_result] last_result: Result<U128, PromiseError>) {
+    fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, to_user: AccountId, #[callback_result] last_result: Result<U128, PromiseError>) {
         if let Ok(balance) = last_result {
             let recorded_balance = self.internal_get_global_balance(&token_id);
             require!(balance.0 >= recorded_balance.as_u128(), INVALID_BALANCE);
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
-            self.internal_withdraw_unowned_asset(&(self.owner_id.clone()), &token_id, U128C::from(can_withdraw_amount));
+            self.internal_withdraw_unowned_asset(&to_user, &token_id, U128C::from(can_withdraw_amount));
         } else {
             log!("withdraw_unowned_asset error");
         }

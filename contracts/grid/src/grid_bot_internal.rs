@@ -42,9 +42,9 @@ impl GridBotContract {
 
         let recorded_price = price_info.price;
         if entry_price >= recorded_price {
-            return (entry_price - recorded_price) / entry_price * SLIPPAGE_DENOMINATOR <= U128C::from(slippage);
+            return (entry_price - recorded_price) * SLIPPAGE_DENOMINATOR / entry_price <= U128C::from(slippage);
         } else {
-            return (recorded_price - entry_price) / entry_price * SLIPPAGE_DENOMINATOR <= U128C::from(slippage);
+            return (recorded_price - entry_price) * SLIPPAGE_DENOMINATOR / entry_price <= U128C::from(slippage);
         }
     }
 
@@ -72,7 +72,8 @@ impl GridBotContract {
             fill_buy_or_sell: false,
             filled: U128C::from(0),
         };
-        let grid_rate_denominator_128 = U128C::from(GRID_RATE_DENOMINATOR);
+        // let grid_rate_denominator_128 = U128C::from(GRID_RATE_DENOMINATOR);
+        let grid_rate_denominator_256 = U256C::from(GRID_RATE_DENOMINATOR);
         if grid_bot.grid_buy_count > (level.clone() as u16) {
             // buy grid
             order.token_sell = pair.quote_token.clone();
@@ -86,7 +87,8 @@ impl GridBotContract {
                     grid_bot.first_quote_amount.clone() + grid_bot.grid_offset * U128C::from(level.clone() as u16)
                 } else {
                     // proportional grid
-                    grid_bot.first_quote_amount.clone() * (grid_rate_denominator_128 + U128C::from(grid_bot.grid_rate)).pow(U128C::from(level.clone() as u16)) / grid_rate_denominator_128.pow(U128C::from(level.clone() as u16))
+                    // grid_bot.first_quote_amount.clone() * (grid_rate_denominator_128 + U128C::from(grid_bot.grid_rate)).pow(U128C::from(level.clone() as u16)) / grid_rate_denominator_128.pow(U128C::from(level.clone() as u16))
+                    U128C::from((U256C::from(grid_bot.first_quote_amount.clone().as_u128()) * (grid_rate_denominator_256 + U256C::from(grid_bot.grid_rate)).pow(U256C::from(level.clone() as u16)) / grid_rate_denominator_256.pow(U256C::from(level.clone() as u16))).as_u128())
                 };
             } else {
                 // fixed quote
@@ -96,7 +98,8 @@ impl GridBotContract {
                     grid_bot.first_base_amount.clone() - grid_bot.grid_offset * U128C::from(level.clone() as u16)
                 } else {
                     // proportional grid
-                    grid_bot.first_base_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(U128C::from(level.clone() as u16)) / grid_rate_denominator_128.pow(U128C::from(level.clone() as u16))
+                    // grid_bot.first_base_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(U128C::from(level.clone() as u16)) / grid_rate_denominator_128.pow(U128C::from(level.clone() as u16))
+                    U128C::from((U256C::from(grid_bot.first_base_amount.clone().as_u128()) * (grid_rate_denominator_256 - U256C::from(grid_bot.grid_rate)).pow(U256C::from(level.clone() as u16)) / grid_rate_denominator_256.pow(U256C::from(level.clone() as u16))).as_u128())
                 };
             }
         } else {
@@ -104,22 +107,24 @@ impl GridBotContract {
             order.token_sell = pair.base_token.clone();
             order.token_buy = pair.quote_token.clone();
             order.fill_buy_or_sell = !grid_bot.fill_base_or_quote.clone();
-            let coefficient = U128C::from(grid_bot.grid_buy_count.clone() + grid_bot.grid_sell_count.clone() - 1 - level.clone() as u16);
+            let coefficient = U256C::from(grid_bot.grid_buy_count.clone() + grid_bot.grid_sell_count.clone() - 1 - level.clone() as u16);
             if grid_bot.fill_base_or_quote {
                 // fixed base
                 order.amount_sell = grid_bot.last_base_amount.clone();
                 order.amount_buy = if grid_bot.grid_type == EqOffset {
-                    grid_bot.last_quote_amount.clone() - grid_bot.grid_offset * coefficient.clone()
+                    grid_bot.last_quote_amount.clone() - grid_bot.grid_offset * U128C::from(coefficient.clone().as_u128())
                 } else {
-                    grid_bot.last_quote_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_128.pow(coefficient.clone())
+                    // grid_bot.last_quote_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_128.pow(coefficient.clone())
+                    U128C::from((U256C::from(grid_bot.last_quote_amount.clone().as_u128()) * (grid_rate_denominator_256 - U256C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_256.pow(coefficient.clone())).as_u128())
                 };
             } else {
                 // fixed quote
                 order.amount_buy = grid_bot.last_quote_amount.clone();
                 order.amount_sell = if grid_bot.grid_type == EqOffset {
-                    grid_bot.last_base_amount.clone() + grid_bot.grid_offset * coefficient.clone()
+                    grid_bot.last_base_amount.clone() + grid_bot.grid_offset * U128C::from(coefficient.clone().as_u128())
                 } else {
-                    grid_bot.last_base_amount.clone() * (grid_rate_denominator_128 + U128C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_128.pow(coefficient.clone())
+                    // grid_bot.last_base_amount.clone() * (grid_rate_denominator_256 + U128C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_256.pow(coefficient.clone())
+                    U128C::from((U256C::from(grid_bot.last_base_amount.clone().as_u128()) * (grid_rate_denominator_256 + U256C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_256.pow(coefficient.clone())).as_u128())
                 };
             }
         }
@@ -135,6 +140,7 @@ impl GridBotContract {
         } else if fill_base_or_quote {
             if grid_type == EqOffset {
                 first_quote_amount * grid_buy_count_u128.clone() + grid_offset * (grid_buy_count_u128.clone() - U128C::from(1)) * grid_buy_count_u128.clone() / U128C::from(2)
+                // U128C::from((U256C::from(first_quote_amount.as_u128()) * U256C::from(grid_buy_count_u128.clone().as_u128()) + U256C::from(grid_offset.as_u128()) * U256C::from((grid_buy_count_u128.clone() - U128C::from(1)).as_u128()) * U256C::from(grid_buy_count_u128.clone().as_u128()) / U256C::from(2)).as_u128())
             } else {
                 let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_buy_count.clone() as u64, grid_rate.clone() as u64);
                 U128C::from(BigDecimal::from(first_quote_amount.clone().as_u128()).mul(geometric_series_sum).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u64)).round_down_u128())
@@ -152,6 +158,7 @@ impl GridBotContract {
         } else {
             if grid_type == EqOffset {
                 last_base_amount * grid_sell_count_u128.clone() + grid_offset * (grid_sell_count_u128.clone() - U128C::from(1)) * grid_sell_count_u128.clone() / U128C::from(2)
+                // U128C::from((U256C::from(last_base_amount.as_u128()) * U256C::from(grid_sell_count_u128.clone().as_u128()) + U256C::from(grid_offset.as_u128()) * U256C::from((grid_sell_count_u128.clone() - U128C::from(1)).as_u128()) * U256C::from(grid_sell_count_u128.clone().as_u128()) / U256C::from(2)).as_u128())
             } else {
                 let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
                 U128C::from(BigDecimal::from(last_base_amount.clone().as_u128()).mul(geometric_series_sum).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u64)).round_down_u128())

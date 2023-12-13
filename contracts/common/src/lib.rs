@@ -43,14 +43,14 @@ impl FtContract {
     }
 
     #[payable]
-    pub fn transfer(&mut self, recipient: AccountId, amount: u128) {
+    pub fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
         let sender_id = env::predecessor_account_id();
         let sender_balance = self.balances.get(&sender_id).expect("Balance not found");
-        assert!(amount <= sender_balance, "Not enough balance");
+        assert!(amount.0.clone() <= sender_balance, "Not enough balance");
 
-        let recipient_balance = self.balances.get(&recipient).unwrap_or(0);
-        self.balances.insert(&sender_id, &(sender_balance - amount));
-        self.balances.insert(&recipient, &(recipient_balance + amount));
+        let recipient_balance = self.balances.get(&receiver_id).unwrap_or(0);
+        self.balances.insert(&sender_id, &(sender_balance - amount.0.clone()));
+        self.balances.insert(&receiver_id, &(recipient_balance + amount.0.clone()));
     }
 
     #[payable]

@@ -26,4 +26,14 @@ impl GridBotContract {
         require!(self.global_balances_map.contains_key(&token), INVALID_TOKEN);
         return self.internal_get_global_balance(&token);
     }
+
+    pub fn query_user_balance(&self, user: AccountId, token: AccountId) -> U128C {
+        require!(self.user_balances_map.contains_key(&user), INVALID_USER);
+        return self.internal_get_user_balance(&user, &token);
+    }
+
+    pub fn query_user_locked_balance(&self, user: AccountId, token: AccountId) -> U128C {
+        require!(self.user_locked_balances_map.contains_key(&user), INVALID_USER);
+        return self.internal_get_user_locked_balance(&user, &token);
+    }
 }

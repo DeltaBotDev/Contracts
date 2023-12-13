@@ -120,17 +120,17 @@ impl GridBotContract {
     //########################################## bot revenue #######################################
     pub fn internal_remove_revenue_from_bot(&mut self, bot: &GridBot) {
         if bot.fill_base_or_quote {
-            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
-        } else {
             self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
+        } else {
+            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
         }
     }
 
     pub fn internal_harvest_revenue(&mut self, bot: &GridBot, pair: &Pair, user: &AccountId) -> (AccountId, U128C) {
         let revenue_token = if bot.fill_base_or_quote {
-            pair.base_token.clone()
-        } else {
             pair.quote_token.clone()
+        } else {
+            pair.base_token.clone()
         };
         let revenue = bot.revenue.clone();
         // transfer out from bot asset
@@ -155,7 +155,7 @@ impl GridBotContract {
         // reduce protocol
         self.internal_reduce_protocol_fee(token, &(amount.clone()));
         // start transfer
-        self.internal_ft_transfer(&user, &token, amount.as_u128());
+        self.internal_ft_transfer_protocol_fee(&user, &token, amount.as_u128());
         emit::withdraw_protocol_fee_started(&user, amount.as_u128(), &token);
     }
 

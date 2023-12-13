@@ -89,23 +89,20 @@ impl GridBotContract {
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
         let user = env::predecessor_account_id();
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
-        let taker_amount_sell = take_order.amount_sell.clone();
-        let taker_amount_buy = take_order.amount_buy.clone();
+        let mut took_amount_sell = U128C::from(0);
+        let mut took_amount_buy = U128C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
-            let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order);
-            take_order.amount_sell -= taker_sell;
-            take_order.amount_buy -= taker_buy;
+            let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            took_amount_sell += taker_sell;
+            took_amount_buy += taker_buy;
         }
-        // calculate taker actually sell and buy amount
-        let total_taker_sell = taker_amount_sell - take_order.amount_sell;
-        let total_taker_buy = taker_amount_buy - take_order.amount_buy;
         // transfer taker's asset
-        self.internal_reduce_asset(&user, &(take_order.token_sell), &total_taker_sell);
-        self.internal_increase_asset(&user, &(take_order.token_buy), &total_taker_buy);
+        self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
+        self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
 
         // withdraw for taker
-        self.internal_withdraw(&user, &(take_order.token_buy), total_taker_buy);
+        self.internal_withdraw(&user, &(take_order.token_buy), took_amount_buy);
     }
 
     pub fn claim(&mut self, bot_id: String) {
@@ -139,15 +136,15 @@ impl GridBotContract {
     //################################################## Owner #####################################
 
     #[payable]
-    pub fn withdraw_protocol_fee(&mut self, token: AccountId) {
+    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId) {
         self.assert_owner();
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
         let protocol_fee = self.internal_get_protocol_fee(&token);
-        self.internal_withdraw_protocol_fee(&(self.owner_id.clone()), &token, protocol_fee);
+        self.internal_withdraw_protocol_fee(&to_user, &token, protocol_fee);
     }
 
     #[payable]
-    pub fn withdraw_unowned_asset(&mut self, token: AccountId) {
+    pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
         self.assert_owner();
         Promise::new(token.clone())
             .function_call(
@@ -161,6 +158,7 @@ impl GridBotContract {
                     .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
                     .after_ft_balance_of_for_withdraw_unowned_asset(
                         token.clone(),
+                        to_user,
                     )
             );
     }

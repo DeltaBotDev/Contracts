@@ -42,6 +42,6 @@ impl GridBotContract {
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());
         // calculate
-        return GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone());
+        return GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone(), U128C::from(0), U128C::from(0));
     }
 }

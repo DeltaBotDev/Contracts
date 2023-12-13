@@ -1,6 +1,7 @@
 use near_sdk::require;
 use crate::*;
-use crate::big_decimal::{BigDecimal, U256};
+use std::ops::{Div};
+use crate::big_decimal::{BigDecimal};
 use crate::entity::GridType::EqOffset;
 
 impl GridBotContract {
@@ -14,7 +15,7 @@ impl GridBotContract {
         GridBotContract::private_place_order(order, orders, level.clone());
     }
 
-    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C) {
+    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U128C, took_buy: U128C) -> (U128C, U128C) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         let (maker_order, in_orderbook) = self.query_order(bot_id.clone(), forward_or_reverse, level);
@@ -22,7 +23,7 @@ impl GridBotContract {
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());
 
         // calculate
-        let (taker_sell, taker_buy, current_filled, made_order) = GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone());
+        let (taker_sell, taker_buy, current_filled, made_order) = GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone(), took_sell, took_buy);
 
         // place into orderbook
         if !in_orderbook {
@@ -46,9 +47,9 @@ impl GridBotContract {
         // bot asset transfer
         self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
         self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
-        // update global
-        self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
-        self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
+        // // update global
+        // self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
+        // self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
 
         // handle protocol fee
         self.internal_add_protocol_fee(&revenue_token, protocol_fee, bot_id, &pair);
@@ -71,10 +72,10 @@ impl GridBotContract {
         require!(taker_order.amount_sell != U128C::from(0), INVALID_ORDER_AMOUNT);
         require!(taker_order.amount_buy != U128C::from(0), INVALID_ORDER_AMOUNT);
 
-        require!(BigDecimal::from(taker_order.amount_sell.as_u128()) / BigDecimal::from(taker_order.amount_buy.as_u128()) >= BigDecimal::from(maker_order.amount_buy.as_u128()) / BigDecimal::from(maker_order.amount_sell.as_u128()), INVALID_PRICE);
+        require!(BigDecimal::from(taker_order.amount_sell.as_u128()).div(BigDecimal::from(taker_order.amount_buy.as_u128())) >= BigDecimal::from(maker_order.amount_buy.as_u128()).div(BigDecimal::from(maker_order.amount_sell.as_u128())), INVALID_PRICE);
     }
 
-    pub fn internal_calculate_matching(maker_order: Order, taker_order: Order) -> (U128C, U128C, U128C, Order) {
+    pub fn internal_calculate_matching(maker_order: Order, taker_order: Order, took_sell: U128C, took_buy: U128C) -> (U128C, U128C, U128C, Order) {
         // calculate marker max amount
         let max_fill_sell;
         let max_fill_buy;
@@ -89,21 +90,23 @@ impl GridBotContract {
         let taker_sell;
         let taker_buy;
         if taker_order.fill_buy_or_sell {
-            if taker_order.amount_buy >= max_fill_sell {
+            let max_taker_buy = taker_order.amount_buy - took_buy;
+            if max_taker_buy >= max_fill_sell {
                 // taker all maker
                 taker_buy = max_fill_sell;
                 taker_sell = max_fill_buy;
             } else {
-                taker_buy = taker_order.amount_buy;
+                taker_buy = max_taker_buy;
                 taker_sell = U128C::from((U256C::from(max_fill_buy.as_u128()) * U256C::from(taker_buy.as_u128()) / U256C::from(max_fill_sell.as_u128())).as_u128());
             }
         } else {
-            if taker_order.amount_sell >= max_fill_buy {
+            let max_taker_sell = taker_order.amount_sell - took_sell;
+            if max_taker_sell >= max_fill_buy {
                 // taker all maker
                 taker_buy = max_fill_sell;
                 taker_sell = max_fill_buy;
             } else {
-                taker_sell = taker_order.amount_sell;
+                taker_sell = max_taker_sell;
                 taker_buy = U128C::from((U256C::from(max_fill_sell.as_u128()) * U256C::from(taker_sell.as_u128()) / U256C::from(max_fill_buy.as_u128())).as_u128());
             }
         }
@@ -181,9 +184,9 @@ impl GridBotContract {
                         bot.last_quote_amount
                     }
                 };
-                made_order.amount_buy.clone() - U128C::from((U256::from(bot.grid_offset.clone().as_u128()) * U256::from(reverse_order.amount_buy.as_u128()) / U256::from(fixed_amount_buy.as_u128())).as_u128())
+                made_order.amount_buy.clone() - U128C::from((U256C::from(bot.grid_offset.clone().as_u128()) * U256C::from(reverse_order.amount_buy.as_u128()) / U256C::from(fixed_amount_buy.as_u128())).as_u128())
             } else {
-                U128C::from((U256::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
+                U128C::from((U256C::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
             };
         }
         return reverse_order;

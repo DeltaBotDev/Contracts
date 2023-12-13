@@ -115,6 +115,109 @@ impl GridBotHelper {
             .await
     }
 
+    pub async fn close_bot(&self, caller: &Account, bot_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start close_bot");
+        caller
+            .call(self.0.id(), "close_bot")
+            .args_json(json!({
+                "bot_id": bot_id,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn trigger_bot(&self, caller: &Account, bot_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start trigger_bot");
+        caller
+            .call(self.0.id(), "trigger_bot")
+            .args_json(json!({
+                "bot_id": bot_id,
+            }))
+            .gas(300_000_000_000_000)
+            // .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn withdraw(&self, caller: &Account, token: AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start withdraw");
+        caller
+            .call(self.0.id(), "withdraw")
+            .args_json(json!({
+                "token": token,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    // ####################################### Owner
+    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start withdraw_protocol_fee");
+        caller
+            .call(self.0.id(), "withdraw_protocol_fee")
+            .args_json(json!({
+                "token": token,
+                "to_user": to_user,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+    pub async fn withdraw_unowned_asset(&self, caller: &Account, token: AccountId, to_user: AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start withdraw_unowned_asset");
+        caller
+            .call(self.0.id(), "withdraw_unowned_asset")
+            .args_json(json!({
+                "token": token,
+                "to_user": to_user,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+    pub async fn pause(&self, caller: &Account) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start pause");
+        caller
+            .call(self.0.id(), "pause")
+            // .args_json(json!({
+            //     "token": token,
+            // }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+    pub async fn start(&self, caller: &Account) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start start");
+        caller
+            .call(self.0.id(), "start")
+            // .args_json(json!({
+            //     "token": token,
+            // }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+    pub async fn shutdown(&self, caller: &Account) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start shutdown");
+        caller
+            .call(self.0.id(), "shutdown")
+            // .args_json(json!({
+            //     "token": token,
+            // }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
 }
 
 impl GridBotHelper {
@@ -187,6 +290,32 @@ impl GridBotHelper {
         self.0
             .call("query_global_balance")
             .args_json(json!({
+                "token": token,
+            }))
+            .view()
+            .await?
+            .json::<Option<U128C>>()
+    }
+
+    pub async fn query_user_balance(&self, user: &AccountId, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+        log!("start query_user_balance");
+        self.0
+            .call("query_user_balance")
+            .args_json(json!({
+                "user": user,
+                "token": token,
+            }))
+            .view()
+            .await?
+            .json::<Option<U128C>>()
+    }
+
+    pub async fn query_user_locked_balance(&self, user: &AccountId,token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+        log!("start query_user_locked_balance");
+        self.0
+            .call("query_user_locked_balance")
+            .args_json(json!({
+                "user": user,
                 "token": token,
             }))
             .view()
