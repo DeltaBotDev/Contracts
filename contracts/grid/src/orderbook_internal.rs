@@ -160,6 +160,7 @@ impl GridBotContract {
                 };
                 made_order.amount_sell.clone() + U128C::from((U256C::from(bot.grid_offset.clone().as_u128()) * U256C::from(reverse_order.amount_sell.as_u128()) / U256C::from(fixed_amount_sell.as_u128())).as_u128())
             } else {
+                // made_order.amount_sell.clone() * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
                 U128C::from((U256C::from(made_order.amount_sell.clone().as_u128()) * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
             };
         } else {
@@ -186,7 +187,9 @@ impl GridBotContract {
                 };
                 made_order.amount_buy.clone() - U128C::from((U256C::from(bot.grid_offset.clone().as_u128()) * U256C::from(reverse_order.amount_buy.as_u128()) / U256C::from(fixed_amount_buy.as_u128())).as_u128())
             } else {
-                U128C::from((U256C::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
+                // made_order.amount_buy.clone() * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
+                // U128C::from((U256C::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
+                U128C::from((U256C::from(made_order.amount_buy.clone().as_u128()) * GRID_RATE_DENOMINATOR / (GRID_RATE_DENOMINATOR + bot.grid_rate.clone())).as_u128())
             };
         }
         return reverse_order;

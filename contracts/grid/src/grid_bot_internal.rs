@@ -99,7 +99,7 @@ impl GridBotContract {
                 } else {
                     // proportional grid
                     // grid_bot.first_base_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(U128C::from(level.clone() as u16)) / grid_rate_denominator_128.pow(U128C::from(level.clone() as u16))
-                    U128C::from((U256C::from(grid_bot.first_base_amount.clone().as_u128()) * (grid_rate_denominator_256 - U256C::from(grid_bot.grid_rate)).pow(U256C::from(level.clone() as u16)) / grid_rate_denominator_256.pow(U256C::from(level.clone() as u16))).as_u128())
+                    U128C::from((U256C::from(grid_bot.first_base_amount.clone().as_u128()) * grid_rate_denominator_256.pow(U256C::from(level.clone() as u16)) / ((grid_rate_denominator_256 + U256C::from(grid_bot.grid_rate)).pow(U256C::from(level.clone() as u16)))).as_u128())
                 };
             }
         } else {
@@ -115,7 +115,7 @@ impl GridBotContract {
                     grid_bot.last_quote_amount.clone() - grid_bot.grid_offset * U128C::from(coefficient.clone().as_u128())
                 } else {
                     // grid_bot.last_quote_amount.clone() * (grid_rate_denominator_128 - U128C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_128.pow(coefficient.clone())
-                    U128C::from((U256C::from(grid_bot.last_quote_amount.clone().as_u128()) * (grid_rate_denominator_256 - U256C::from(grid_bot.grid_rate)).pow(coefficient.clone()) / grid_rate_denominator_256.pow(coefficient.clone())).as_u128())
+                    U128C::from((U256C::from(grid_bot.last_quote_amount.clone().as_u128()) * grid_rate_denominator_256.pow(coefficient.clone()) / ((grid_rate_denominator_256 + U256C::from(grid_bot.grid_rate)).pow(coefficient.clone()))).as_u128())
                 };
             } else {
                 // fixed quote
@@ -140,10 +140,9 @@ impl GridBotContract {
         } else if fill_base_or_quote {
             if grid_type == EqOffset {
                 first_quote_amount * grid_buy_count_u128.clone() + grid_offset * (grid_buy_count_u128.clone() - U128C::from(1)) * grid_buy_count_u128.clone() / U128C::from(2)
-                // U128C::from((U256C::from(first_quote_amount.as_u128()) * U256C::from(grid_buy_count_u128.clone().as_u128()) + U256C::from(grid_offset.as_u128()) * U256C::from((grid_buy_count_u128.clone() - U128C::from(1)).as_u128()) * U256C::from(grid_buy_count_u128.clone().as_u128()) / U256C::from(2)).as_u128())
             } else {
                 let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_buy_count.clone() as u64, grid_rate.clone() as u64);
-                U128C::from(BigDecimal::from(first_quote_amount.clone().as_u128()).mul(geometric_series_sum).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u64)).round_down_u128())
+                U128C::from(BigDecimal::from(first_quote_amount.clone().as_u128()).mul(geometric_series_sum).round_down_u128())
             }
         } else {
             first_quote_amount * grid_buy_count_u128.clone()
@@ -158,20 +157,27 @@ impl GridBotContract {
         } else {
             if grid_type == EqOffset {
                 last_base_amount * grid_sell_count_u128.clone() + grid_offset * (grid_sell_count_u128.clone() - U128C::from(1)) * grid_sell_count_u128.clone() / U128C::from(2)
-                // U128C::from((U256C::from(last_base_amount.as_u128()) * U256C::from(grid_sell_count_u128.clone().as_u128()) + U256C::from(grid_offset.as_u128()) * U256C::from((grid_sell_count_u128.clone() - U128C::from(1)).as_u128()) * U256C::from(grid_sell_count_u128.clone().as_u128()) / U256C::from(2)).as_u128())
             } else {
-                let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
-                U128C::from(BigDecimal::from(last_base_amount.clone().as_u128()).mul(geometric_series_sum).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u64)).round_down_u128())
+                let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum_for_sell(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
+                U128C::from(BigDecimal::from(last_base_amount.clone().as_u128()).mul(geometric_series_sum).round_down_u128())
             }
         };
         return (base_amount_sell, quote_amount_buy);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {
-        let scale = BigDecimal::from(GRID_RATE_DENOMINATOR as u64);
+        let scale = BigDecimal::from(1 as u64);
         let a = scale;   // 1.0 * scale
-        let r = BigDecimal::from(delta_r).add(BigDecimal::from(GRID_RATE_DENOMINATOR as u64));
-        let sum = a.mul(scale.sub(r.pow(n))).div(scale.sub(r));
+        let r = BigDecimal::from(delta_r).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u128)).add(BigDecimal::from(1 as u64));
+        let sum = a.mul(r.pow(n).sub(scale)).div(r.sub(scale));
+        return sum;
+    }
+
+    fn private_calculate_rate_bot_geometric_series_sum_for_sell(n: u64, delta_r: u64) -> BigDecimal {
+        let scale = BigDecimal::from(1 as u64);
+        let a = scale;   // 1.0 * scale
+        let r = BigDecimal::from(1 as u64).div(BigDecimal::from(delta_r).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u128)).add(BigDecimal::from(1 as u64)));
+        let sum = a.mul(r.pow(n).sub(scale)).div(r.sub(scale));
         return sum;
     }
 }
