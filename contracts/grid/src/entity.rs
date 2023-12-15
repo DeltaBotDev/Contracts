@@ -88,8 +88,6 @@ impl Clone for GridBot {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
-    /// order_id: botId-0/1[forward/reverse]-[level]
-    pub order_id: String,
     pub token_sell: AccountId,
     pub token_buy: AccountId,
     pub amount_sell: U128C,
@@ -100,7 +98,6 @@ pub struct Order {
 impl Default for Order {
     fn default() -> Self {
         Order {
-            order_id: "".to_string(),
             token_sell: AccountId::new_unchecked("alice".to_string()),
             token_buy: AccountId::new_unchecked("alice".to_string()),
             amount_sell: Default::default(),
@@ -113,7 +110,6 @@ impl Default for Order {
 impl Clone for Order {
     fn clone(&self) -> Self {
         Order {
-            order_id: self.order_id.clone(),
             token_sell: self.token_sell.clone(),
             token_buy: self.token_buy.clone(),
             amount_sell: self.amount_sell.clone(),

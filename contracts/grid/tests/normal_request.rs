@@ -202,7 +202,6 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     // buy one: 100000000, 2000000000 + 10000000 * 14=2140000000
     // buy two: 100000000, 2000000000 + 10000000 * 13=2130000000
     let take_order = Order {
-        order_id: "".to_string(),
         token_sell: eth_token_contract.get_account_id(),
         token_buy: usdc_token_contract.get_account_id(),
         amount_sell: U128C::from(100000000 as u128),
@@ -262,7 +261,6 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
 
     // buy ETH, take the reverse order
     let take_order = Order {
-        order_id: "".to_string(),
         token_sell: usdc_token_contract.get_account_id(),
         token_buy: eth_token_contract.get_account_id(),
         amount_sell: U128C::from(2150000000 as u128),
@@ -324,7 +322,6 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
 
     // Partial filled
     let take_order = Order {
-        order_id: "".to_string(),
         token_sell: eth_token_contract.get_account_id(),
         token_buy: usdc_token_contract.get_account_id(),
         amount_sell: U128C::from(50000000 as u128),

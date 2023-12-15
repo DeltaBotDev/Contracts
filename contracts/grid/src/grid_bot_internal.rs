@@ -65,8 +65,6 @@ impl GridBotContract {
     // TODO need check again, and test
     pub fn internal_get_first_forward_order(grid_bot: GridBot, pair: Pair, level: usize) -> Order {
         let mut order = Order{
-            // TODO can remove
-            order_id: level.to_string(),
             token_sell: pair.base_token.clone(),
             token_buy: pair.quote_token.clone(),
             amount_sell: U128C::from(0),

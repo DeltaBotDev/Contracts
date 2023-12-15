@@ -143,12 +143,11 @@ impl GridBotContract {
     }
 
     pub fn internal_order_is_empty(order: &Order) -> bool {
-        return order.amount_buy == U128C::from(0) || order.amount_sell == U128C::from(0) || order.order_id == ""
+        return order.amount_buy == U128C::from(0) || order.amount_sell == U128C::from(0)
     }
 
     pub fn internal_get_opposite_order(made_order: &Order, bot: GridBot, forward_or_reverse: bool, level: usize) -> Order {
         let mut reverse_order = Order{
-            order_id: made_order.order_id.clone(),
             token_sell: made_order.token_buy.clone(),
             token_buy: made_order.token_sell.clone(),
             amount_sell: U128C::from(0),

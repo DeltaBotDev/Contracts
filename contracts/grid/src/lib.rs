@@ -40,7 +40,6 @@ pub struct GridBotContract {
     /// bot_id = GRID:index
     pub bot_map: LookupMap<String, GridBot>,
     /// order_map[bot_id][0][0] = first forward order; order_map[bot_id][1][0] = first reverse order;
-    /// TODO Vector
     pub order_map: LookupMap<String, Vector<Vector<Order>>>,
     /// start from 0, used from 1
     pub next_bot_id: u128,
