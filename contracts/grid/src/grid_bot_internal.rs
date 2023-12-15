@@ -5,6 +5,7 @@ use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
+use crate::entity::OrdersStorageKey;
 
 impl GridBotContract {
 
@@ -168,6 +169,18 @@ impl GridBotContract {
             }
         };
         return (base_amount_sell, quote_amount_buy);
+    }
+
+    pub fn create_default_orders(grid_count: u16) -> Vector<Vector<Order>> {
+        let mut outer_vector = Vector::new(OrdersStorageKey::OuterVector);
+        for i in 0..2 {
+            let mut inner_vector = Vector::new(OrdersStorageKey::InnerVector(i as u64));
+            for _ in 0..grid_count {
+                inner_vector.push(&Order::default());
+            }
+            outer_vector.push(&inner_vector);
+        }
+        return outer_vector;
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

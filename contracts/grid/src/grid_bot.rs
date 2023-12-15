@@ -38,9 +38,11 @@ impl GridBotContract {
         // create bot id
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
         // initial orders space
-        let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
+        let grid_count = grid_sell_count.clone() + grid_buy_count.clone();
         // self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
-        self.order_map.insert(&next_bot_id, &(vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]));
+        // self.order_map.insert(&next_bot_id, &(vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]));
+        let grid_orders = GridBotContract::create_default_orders(grid_count);
+        self.order_map.insert(&next_bot_id, &grid_orders);
 
         // create bot
         let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,

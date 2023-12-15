@@ -1,11 +1,7 @@
-// use near_contract_standards::fungible_token::metadata::{
-//     FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
-// };
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LookupMap, Vector};
 
 mod utils;
 mod constants;
@@ -45,7 +41,7 @@ pub struct GridBotContract {
     pub bot_map: LookupMap<String, GridBot>,
     /// order_map[bot_id][0][0] = first forward order; order_map[bot_id][1][0] = first reverse order;
     /// TODO Vector
-    pub order_map: LookupMap<String, Vec<Vec<Order>>>,
+    pub order_map: LookupMap<String, Vector<Vector<Order>>>,
     /// start from 0, used from 1
     pub next_bot_id: u128,
     /// oracle_price_map[pair_id] = OraclePrice

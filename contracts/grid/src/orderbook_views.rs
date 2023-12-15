@@ -15,15 +15,20 @@ impl GridBotContract {
         // check timestamp
         require!(bot.valid_until_time >= U128C::from(env::block_timestamp_ms()), BOT_EXPIRED);
         let bot_orders = self.order_map.get(&bot_id).unwrap();
-        let orders = if forward_or_reverse { &bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &bot_orders[REVERSE_ORDERS_INDEX.clone()] };
+        let orders = if forward_or_reverse {
+            bot_orders.get(FORWARD_ORDERS_INDEX).unwrap()
+        } else {
+            bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
+        };
         // check order
-        if GridBotContract::internal_order_is_empty(&(orders[level])) {
+        let order = &orders.get(level as u64).unwrap();
+        if GridBotContract::internal_order_is_empty(order) {
             require!(forward_or_reverse, INVALID_FORWARD_OR_REVERSE);
             // The current grid order has not been placed yet
             let pair = self.pair_map.get(&(bot.pair_id.clone())).unwrap();
             return ((GridBotContract::internal_get_first_forward_order(bot.clone(), pair.clone(), level.clone())), false);
         }
-        return ((orders[level.clone()].clone()), true);
+        return (order.clone(), true);
     }
 
     pub fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Vec<Order> {

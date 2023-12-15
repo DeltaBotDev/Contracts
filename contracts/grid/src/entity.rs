@@ -181,8 +181,8 @@ pub enum UserBalanceLockedStorageKey {
     InnerMap(AccountId),
 }
 
-//
-// pub struct UserBalance {
-//     pub balances_map: LookupMap<AccountId, U128C>,
-//     pub locked_balances_map: LookupMap<AccountId, U128C>,
-// }
+#[derive(BorshStorageKey, BorshSerialize, BorshDeserialize)]
+pub enum OrdersStorageKey {
+    OuterVector,
+    InnerVector(u64),
+}
