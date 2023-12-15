@@ -19,6 +19,7 @@ impl FungibleTokenReceiver for GridBotContract {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
+        // TODO set min deposit
         require!(msg.is_empty(), INVALID_TRANSFER_DATA);
         let token_in = env::predecessor_account_id();
         require!(self.global_balances_map.contains_key(&(token_in.clone())), INVALID_TOKEN);
@@ -28,6 +29,7 @@ impl FungibleTokenReceiver for GridBotContract {
         self.internal_increase_asset(&sender_id, &token_in, &(U128C::from(amount.clone())));
         // add amount to global
         self.internal_increase_global_asset(&token_in, &(U128C::from(amount)));
+        // TODO return 0 means cost all
         return PromiseOrValue::Value(U128::from(0));
     }
 }
@@ -44,6 +46,7 @@ impl GridBotContract {
             ).then(
             Self::ext(env::current_account_id())
                 .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                // TODO can use sign
                 .after_ft_transfer(
                     account_id.clone(),
                     token_id.clone(),
@@ -112,7 +115,8 @@ impl ExtSelf for GridBotContract {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
-            self.internal_increase_asset(&account_id, &token_id, &(U128C::from(amount.clone().0)));
+            // TODO record to special account
+            // self.internal_increase_asset(&account_id, &token_id, &(U128C::from(amount.clone().0)));
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset

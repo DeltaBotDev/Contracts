@@ -10,9 +10,10 @@ impl GridBotContract {
         require!(self.order_map.contains_key(&bot_id), INVALID_BOT_ID_FOR_ORDER_MAP);
         require!(self.order_map.get(&bot_id).unwrap().len() == ORDER_POSITION_SIZE.clone() as usize, INVALID_ORDER_POSITION_LEN);
 
-        let bot_orders = self.order_map.get_mut(&bot_id).unwrap();
+        let mut bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
         GridBotContract::private_place_order(order, orders, level.clone());
+        self.order_map.insert(&bot_id, &bot_orders);
     }
 
     pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U128C, took_buy: U128C) -> (U128C, U128C) {
@@ -39,29 +40,35 @@ impl GridBotContract {
         // calculate bot's revenue
         let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.as_u128());
         // add revenue
-        let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
-        bot_mut.revenue += U128C::from(revenue);
+        // let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
+        let mut bot = self.bot_map.get(&bot_id.clone()).unwrap();
+        bot.revenue += U128C::from(revenue);
         // update bot asset
-        GridBotContract::internal_update_bot_asset(bot_mut, &pair, taker_order.token_buy.clone(), taker_buy.as_u128(), taker_sell.as_u128());
+        GridBotContract::internal_update_bot_asset(&mut bot, &pair, taker_order.token_buy.clone(), taker_buy.as_u128(), taker_sell.as_u128());
 
         // bot asset transfer
         self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
         self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
-        // // update global
-        // self.internal_reduce_global_asset(&(taker_order.token_buy), &taker_buy);
-        // self.internal_increase_global_asset(&(taker_order.token_sell), &taker_sell);
 
         // handle protocol fee
-        self.internal_add_protocol_fee(&revenue_token, protocol_fee, bot_id, &pair);
+        self.internal_add_protocol_fee(&mut bot, &revenue_token, protocol_fee, &pair);
+
+        // update bot
+        self.bot_map.insert(&bot_id, &bot);
 
         return (taker_sell, taker_buy);
     }
 
     pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U128C) -> Order {
-        let bot_orders = self.order_map.get_mut(&bot_id).unwrap();
-        let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
-        let order = orders.get_mut(level).unwrap();
-        order.filled += current_filled;
+        let mut bot_orders = self.order_map.get(&bot_id).unwrap();
+        let order;
+        {
+            let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX.clone()] } else { &mut bot_orders[REVERSE_ORDERS_INDEX.clone()] };
+            let tmp_order = orders.get_mut(level).unwrap();
+            tmp_order.filled += current_filled;
+            order = tmp_order.clone();
+        }
+        self.order_map.insert(&bot_id, &bot_orders);
         return order.clone();
     }
 
@@ -69,6 +76,7 @@ impl GridBotContract {
         require!(maker_order.token_buy == taker_order.token_sell, INVALID_ORDER_TOKEN);
         require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
         require!(taker_order.token_sell != taker_order.token_buy, INVALID_ORDER_TOKEN);
+        // TODO can move to outside
         require!(taker_order.amount_sell != U128C::from(0), INVALID_ORDER_AMOUNT);
         require!(taker_order.amount_buy != U128C::from(0), INVALID_ORDER_AMOUNT);
 
@@ -202,6 +210,7 @@ impl GridBotContract {
         // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
         let revenue_token;
         let mut revenue;
+        // TODO had made_order, maybe can use mad_order
         if opposite_order.fill_buy_or_sell {
             // current_filled token is forward_order's buy token
             // revenue token is forward_order's sell token

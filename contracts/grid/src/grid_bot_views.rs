@@ -36,4 +36,13 @@ impl GridBotContract {
         require!(self.user_locked_balances_map.contains_key(&user), INVALID_USER);
         return self.internal_get_user_locked_balance(&user, &token);
     }
+
+    pub fn query_pair_info(&self, pair_id: String) -> Pair {
+        require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
+        return self.pair_map.get(&pair_id).unwrap().clone();
+    }
+
+    pub fn query_protocol_fee_rate(&self) -> U128C {
+        return U128C::from(self.protocol_fee_rate.clone());
+    }
 }

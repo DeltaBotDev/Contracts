@@ -12,8 +12,10 @@ impl GridBotContract {
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
                       entry_price: U128C) -> String {
+        // TODO got near storage fee
         assert_one_yocto();
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
+        // TODO check all div need Bigdecimal
         require!(last_quote_amount / last_base_amount > first_quote_amount / first_base_amount, INVALID_FIRST_OR_LAST_AMOUNT);
         // got oracle price
         require!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , ORACLE_PRICE_EXCEPTION);
@@ -38,7 +40,7 @@ impl GridBotContract {
         // initial orders space
         let grid_count = grid_sell_count.clone() as usize + grid_buy_count.clone() as usize;
         // self.order_map.insert(next_bot_id.clone(), vec!(Vec::with_capacity(grid_count.clone()), Vec::with_capacity(grid_count.clone())));
-        self.order_map.insert(next_bot_id.clone(), vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]);
+        self.order_map.insert(&next_bot_id, &(vec![(0..grid_count).map(|_| Order::default()).collect(), (0..grid_count).map(|_| Order::default()).collect()]));
 
         // create bot
         let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,
@@ -51,7 +53,7 @@ impl GridBotContract {
         self.internal_init_bot_status(&mut new_grid_bot, entry_price);
 
         // insert bot
-        self.bot_map.insert(next_bot_id.clone(), new_grid_bot);
+        self.bot_map.insert(&(next_bot_id.clone()), &new_grid_bot);
         return next_bot_id.clone();
     }
 
@@ -59,19 +61,20 @@ impl GridBotContract {
     pub fn close_bot(&mut self, bot_id: String) {
         assert_one_yocto();
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
-        let bot = self.bot_map.get(&bot_id).unwrap().clone();
+        let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         // check permission, user self close or take profit or stop loss
         let user = env::predecessor_account_id();
         require!(self.internal_check_bot_close_permission(&user, &bot), NO_PERMISSION);
 
         // sign closed
-        self.bot_map.get_mut(&bot_id).unwrap().closed = true;
+        // let mut bot = self.bot_map.get(&bot_id).unwrap();
+        // // TODO got bot_mut once
+        // self.bot_map.get_mut(&bot_id).unwrap().closed = true;
+        bot.closed = true;
 
         // harvest revenue, must fist execute, will split revenue from bot's asset
-        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &(bot.user));
-        // reget bot
-        let bot = self.bot_map.get(&bot_id).unwrap().clone();
+        let (revenue_token, revenue) = self.internal_harvest_revenue(&mut bot, &pair);
         // unlock token
         self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), bot.total_base_amount.clone());
         self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), bot.total_quote_amount.clone());
@@ -80,11 +83,14 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount);
         self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
+
+        self.bot_map.insert(&bot_id, &bot);
     }
 
     #[payable]
-    pub fn take_orders(&mut self, take_order: &mut Order, maker_orders: Vec<OrderKeyInfo>) {
-        assert_one_yocto();
+    // TODO take can transfer then take orders
+    pub fn take_orders(&mut self, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) {
+        // assert_one_yocto();
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
         let user = env::predecessor_account_id();
@@ -103,25 +109,32 @@ impl GridBotContract {
 
         // withdraw for taker
         self.internal_withdraw(&user, &(take_order.token_buy), took_amount_buy);
+        // TODO need to withdraw the left asset, with return
     }
 
     pub fn claim(&mut self, bot_id: String) {
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
-        let bot = self.bot_map.get(&bot_id).unwrap().clone();
+        let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         let pair = self.pair_map.get(&(bot.pair_id)).unwrap().clone();
         // harvest revenue
-        let (revenue_token, revenue) = self.internal_harvest_revenue(&bot, &pair, &(bot.user));
+        let (revenue_token, revenue) = self.internal_harvest_revenue(&mut bot, &pair);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
+        self.bot_map.insert(&bot_id, &bot);
     }
 
     pub fn trigger_bot(&mut self, bot_id: String) {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
-        let bot = self.bot_map.get(&bot_id).unwrap().clone();
-        let oracle_price = self.internal_get_oracle_price(bot.pair_id);
+        let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
+        require!(bot.active.clone() == false, BOT_IS_ACTIVE);
+        let oracle_price = self.internal_get_oracle_price(bot.pair_id.clone());
         if bot.trigger_price_above_or_below && bot.trigger_price <= oracle_price {
-            self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            // self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            bot.active = true;
+            self.bot_map.insert(&bot_id, &bot);
         } else if !bot.trigger_price_above_or_below.clone() && bot.trigger_price.clone() >= oracle_price {
-            self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            // self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            bot.active = true;
+            self.bot_map.insert(&bot_id, &bot);
         }
     }
 
@@ -164,14 +177,23 @@ impl GridBotContract {
     }
 
     #[payable]
+    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U128C) {
+        self.assert_owner();
+        require!(new_protocol_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
+        self.protocol_fee_rate = new_protocol_fee_rate.as_u128();
+    }
+
+    #[payable]
     pub fn pause(&mut self) {
         self.assert_owner();
+        // TODO shutdown
         self.status = GridStatus::Paused;
     }
 
     #[payable]
     pub fn start(&mut self) {
         self.assert_owner();
+        // TODO shutdown
         self.status = GridStatus::Running;
     }
 
@@ -188,16 +210,15 @@ impl GridBotContract {
         let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
         require!(!self.pair_map.contains_key(&pair_key), PAIR_EXIST);
         let pair = Pair{
-            // pair_id: U128C::from(self.internal_get_and_use_next_pair_id()),
             base_token: base_token.clone(),
             quote_token: quote_token.clone(),
         };
-        self.pair_map.insert(pair_key, pair.clone());
+        self.pair_map.insert(&pair_key, &pair);
         if !self.global_balances_map.contains_key(&(base_token.clone())) {
-            self.global_balances_map.insert(base_token.clone(), U128C::from(0));
+            self.global_balances_map.insert(&base_token, &U128C::from(0));
         }
         if !self.global_balances_map.contains_key(&(quote_token.clone())) {
-            self.global_balances_map.insert(quote_token.clone(), U128C::from(0));
+            self.global_balances_map.insert(&quote_token, &U128C::from(0));
         }
     }
 
@@ -209,6 +230,6 @@ impl GridBotContract {
             valid_timestamp: env::block_timestamp_ms() + 3600000,
             price,
         };
-        self.oracle_price_map.insert(pair_id, price_info);
+        self.oracle_price_map.insert(&pair_id, &price_info);
     }
 }

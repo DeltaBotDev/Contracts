@@ -19,6 +19,7 @@ impl GridBotContract {
         require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
     }
 
+    // TODO need
     // /// Migration function.
     // /// For next version upgrades, change this function.
     // #[init(ignore_state)]

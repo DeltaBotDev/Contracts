@@ -3,6 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 use crate::utils::{U128C};
+use near_sdk::BorshStorageKey;
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -87,7 +88,7 @@ impl Clone for GridBot {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
-    /// order_id: botId-0/1-level
+    /// order_id: botId-0/1[forward/reverse]-[level]
     pub order_id: String,
     pub token_sell: AccountId,
     pub token_buy: AccountId,
@@ -100,9 +101,8 @@ impl Default for Order {
     fn default() -> Self {
         Order {
             order_id: "".to_string(),
-            // TODO
-            token_sell: AccountId::new_unchecked("zeromain.near".to_string()),
-            token_buy: AccountId::new_unchecked("zeromain.near".to_string()),
+            token_sell: AccountId::new_unchecked("alice".to_string()),
+            token_buy: AccountId::new_unchecked("alice".to_string()),
             amount_sell: Default::default(),
             amount_buy: Default::default(),
             fill_buy_or_sell: false,
@@ -153,9 +153,9 @@ pub struct OraclePrice {
     pub price: U128C,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Pair {
-    // pub pair_id: U128C,
     pub base_token: AccountId,
     pub quote_token: AccountId,
 }
@@ -168,3 +168,21 @@ impl Clone for Pair {
         }
     }
 }
+
+#[derive(BorshStorageKey, BorshSerialize)]
+pub enum UserBalanceAvailableStorageKey {
+    ComplexMap,
+    InnerMap(AccountId),
+}
+
+#[derive(BorshStorageKey, BorshSerialize)]
+pub enum UserBalanceLockedStorageKey {
+    ComplexMap,
+    InnerMap(AccountId),
+}
+
+//
+// pub struct UserBalance {
+//     pub balances_map: LookupMap<AccountId, U128C>,
+//     pub locked_balances_map: LookupMap<AccountId, U128C>,
+// }

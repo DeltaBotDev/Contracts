@@ -1,8 +1,9 @@
-use std::collections::HashMap;
 use near_sdk::{AccountId, Balance};
-use crate::{GridBot, GridBotContract, U128C};
+use near_sdk::collections::LookupMap;
+use crate::{GridBot, GridBotContract, U128C, UserBalanceLockedStorageKey};
 use crate::entity::Pair;
 use crate::events::emit;
+use crate::UserBalanceAvailableStorageKey;
 
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
@@ -10,96 +11,143 @@ impl GridBotContract {
         if *amount == U128C::from(0) {
             return;
         }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance -= *amount;
+        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        // let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        // *balance -= *amount;
+
+        let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(UserBalanceAvailableStorageKey::InnerMap(user.clone()));
+            map.insert(token, &U128C::from(0));
+            map
+        });
+
+        let balance = user_balances.get(token).unwrap_or(U128C::from(0));
+        user_balances.insert(token, &(balance - amount));
+
+        self.user_balances_map.insert(user, &user_balances);
     }
 
     pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
         if *amount == U128C::from(0) {
             return;
         }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance += *amount;
+        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        // let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        // *balance += *amount;
+
+        let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(UserBalanceAvailableStorageKey::InnerMap(user.clone()));
+            map.insert(token, &U128C::from(0));
+            map
+        });
+
+        let balance = user_balances.get(token).unwrap_or(U128C::from(0));
+        user_balances.insert(token, &(balance + amount));
+
+        self.user_balances_map.insert(user, &user_balances);
     }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.global_balances_map.get_mut(token).unwrap();
-        *balance += *amount;
+        let balance = self.global_balances_map.get(token).unwrap();
+        let new_balance = balance + amount;
+        self.global_balances_map.insert(token, &new_balance);
     }
 
     pub fn internal_reduce_global_asset(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.global_balances_map.get_mut(token).unwrap();
-        *balance -= *amount;
+        let balance = self.global_balances_map.get(token).unwrap();
+        let new_balance = balance - amount;
+        self.global_balances_map.insert(token, &new_balance);
     }
 
     pub fn internal_increase_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.protocol_fee_map.get_mut(token).unwrap();
-        *balance += *amount;
+        let balance = self.protocol_fee_map.get(token).unwrap();
+        let new_balance = balance + amount;
+        self.protocol_fee_map.insert(token, &new_balance);
     }
 
     pub fn internal_reduce_protocol_fee(&mut self, token: &AccountId, amount: &U128C) {
-        let balance = self.protocol_fee_map.get_mut(token).unwrap();
-        *balance -= *amount;
+        let balance = self.protocol_fee_map.get(token).unwrap();
+        let new_balance = balance - amount;
+        self.protocol_fee_map.insert(token, &new_balance);
     }
 
     pub fn internal_increase_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
         if *amount == U128C::from(0) {
             return;
         }
-        let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance += *amount;
+        // let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
+        // let locked_balance = user_locked_balances.get_mut(&token).unwrap();
+        // *locked_balance += *amount;
+
+        let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(UserBalanceLockedStorageKey::InnerMap(user.clone()));
+            map.insert(token, &U128C::from(0));
+            map
+        });
+
+        let balance = user_locked_balances.get(token).unwrap_or(U128C::from(0));
+        user_locked_balances.insert(token, &(balance + amount));
+
+        self.user_locked_balances_map.insert(user, &user_locked_balances);
     }
 
     pub fn internal_reduce_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U128C) {
         if *amount == U128C::from(0) {
             return;
         }
-        let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        *locked_balance -= *amount;
+        // let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
+        // let locked_balance = user_locked_balances.get_mut(&token).unwrap();
+        // *locked_balance -= *amount;
+
+        let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(UserBalanceLockedStorageKey::InnerMap(user.clone()));
+            map.insert(token, &U128C::from(0));
+            map
+        });
+
+        let balance = user_locked_balances.get(token).unwrap_or(U128C::from(0));
+        user_locked_balances.insert(token, &(balance - amount));
+
+        self.user_locked_balances_map.insert(user, &user_locked_balances);
     }
 
     //################################### Asset Transfer ###########################################
     pub fn internal_transfer_assets_to_lock(&mut self, user: AccountId, token: AccountId, amount: U128C) {
-        if amount == U128C::from(0) {
-            return;
-        }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance -= amount;
+        self.internal_reduce_asset(&user, &token, &amount);
 
-        let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *locked_balance += amount;
+        self.internal_increase_locked_assets(&user, &token, &amount)
     }
 
     pub fn internal_transfer_assets_to_unlock(&mut self, user: &AccountId, token: &AccountId, amount: U128C) {
         if amount == U128C::from(0) {
             return;
         }
-        let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *balance += amount.clone();
+        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        // let balance = user_balances.entry(token.clone()).or_insert(U128C::from(0));
+        // *balance += amount.clone();
+        self.internal_increase_asset(user, token, &amount);
 
-        let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
-        *locked_balance -= amount;
+        // let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
+        // let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U128C::from(0));
+        // *locked_balance -= amount;
+
+        self.internal_reduce_asset(user, token, &amount);
     }
 
-    pub fn internal_add_protocol_fee(&mut self, token: &AccountId, fee: Balance, bot_id: String, pair: &Pair) {
+    pub fn internal_add_protocol_fee(&mut self, bot: &mut GridBot, token: &AccountId, fee: Balance, pair: &Pair) {
         if !self.protocol_fee_map.contains_key(token) {
-            self.protocol_fee_map.insert(token.clone(), U128C::from(0));
+            self.protocol_fee_map.insert(&token, &U128C::from(0));
         }
-        let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
-        let user = bot_mut.user.clone();
+        // let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
+        // let user = bot_mut.user.clone();
+        let user = bot.user.clone();
         // reduce bot's asset
         if *token == pair.base_token {
-            bot_mut.total_base_amount -= U128C::from(fee.clone());
+            // bot_mut.total_base_amount -= U128C::from(fee.clone());
+            bot.total_base_amount -= U128C::from(fee.clone());
         } else {
-            bot_mut.total_quote_amount -= U128C::from(fee.clone());
+            // bot_mut.total_quote_amount -= U128C::from(fee.clone());
+            bot.total_quote_amount -= U128C::from(fee.clone());
         }
         // reduce user's lock asset
         self.internal_reduce_locked_assets(&user, &token, &(U128C::from(fee.clone())));
@@ -118,15 +166,17 @@ impl GridBotContract {
     }
 
     //########################################## bot revenue #######################################
-    pub fn internal_remove_revenue_from_bot(&mut self, bot: &GridBot) {
+    pub fn internal_remove_revenue_from_bot(&mut self, bot: &mut GridBot) {
         if bot.fill_base_or_quote {
-            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
+            // self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
+            bot.total_quote_amount -= bot.revenue.clone();
         } else {
-            self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
+            // self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
+            bot.total_base_amount -= bot.revenue.clone();
         }
     }
 
-    pub fn internal_harvest_revenue(&mut self, bot: &GridBot, pair: &Pair, user: &AccountId) -> (AccountId, U128C) {
+    pub fn internal_harvest_revenue(&mut self, bot: &mut GridBot, pair: &Pair) -> (AccountId, U128C) {
         let revenue_token = if bot.fill_base_or_quote {
             pair.quote_token.clone()
         } else {
@@ -134,11 +184,12 @@ impl GridBotContract {
         };
         let revenue = bot.revenue.clone();
         // transfer out from bot asset
-        self.internal_remove_revenue_from_bot(&bot);
+        self.internal_remove_revenue_from_bot(bot);
         // transfer to available asset
-        self.internal_increase_asset(&user, &revenue_token, &(U128C::from(revenue.clone())));
+        self.internal_increase_asset(&(bot.user.clone()), &revenue_token, &(U128C::from(revenue.clone())));
         // sign to 0
-        self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = U128C::from(0);
+        // self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = U128C::from(0);
+        bot.revenue = U128C::from(0);
         return (revenue_token, U128C::from(revenue));
     }
 

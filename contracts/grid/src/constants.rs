@@ -15,6 +15,7 @@ pub const SLIPPAGE_DENOMINATOR: u16 = 10000;
 pub const GRID_RATE_DENOMINATOR: u16 = 10000;
 
 pub const DEFAULT_PROTOCOL_FEE: u128 = 10000;
+pub const MAX_PROTOCOL_FEE: u128 = 100000;
 /// protocol fee denominator
 pub const PROTOCOL_FEE_DENOMINATOR: u128 = 1000000;
 

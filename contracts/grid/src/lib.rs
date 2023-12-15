@@ -5,7 +5,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
-use std::collections::HashMap;
+use near_sdk::collections::LookupMap;
 
 mod utils;
 mod constants;
@@ -13,7 +13,6 @@ mod errors;
 mod entity;
 mod grid_bot;
 mod orderbook;
-mod storage;
 mod grid_bot_internal;
 mod token;
 mod orderbook_internal;
@@ -42,19 +41,21 @@ pub struct GridBotContract {
     /// real_protocol_fee = protocol_fee / 1000000
     pub protocol_fee_rate: u128,
     /// bot_map[bot_id] = bot
-    pub bot_map: HashMap<String, GridBot>,
+    /// bot_id = GRID:index
+    pub bot_map: LookupMap<String, GridBot>,
     /// order_map[bot_id][0][0] = first forward order; order_map[bot_id][1][0] = first reverse order;
-    pub order_map: HashMap<String, Vec<Vec<Order>>>,
+    /// TODO Vector
+    pub order_map: LookupMap<String, Vec<Vec<Order>>>,
     /// start from 0, used from 1
     pub next_bot_id: u128,
     /// oracle_price_map[pair_id] = OraclePrice
-    pub oracle_price_map: HashMap<String, OraclePrice>,
+    pub oracle_price_map: LookupMap<String, OraclePrice>,
     /// pair_map[base_token_addr+":"+quote_token_addr] = Pair
-    pub pair_map: HashMap<String, Pair>,
-    pub protocol_fee_map: HashMap<AccountId, U128C>,
-    pub global_balances_map: HashMap<AccountId, U128C>,
-    pub user_balances_map: HashMap<AccountId, HashMap<AccountId, U128C>>,
-    pub user_locked_balances_map: HashMap<AccountId, HashMap<AccountId, U128C>>,
+    pub pair_map: LookupMap<String, Pair>,
+    pub protocol_fee_map: LookupMap<AccountId, U128C>,
+    pub global_balances_map: LookupMap<AccountId, U128C>,
+    pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U128C>>,
+    pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U128C>>,
 }
 
 #[near_bindgen]
@@ -66,15 +67,15 @@ impl GridBotContract {
             status: GridStatus::Running,
             // 1%
             protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
-            bot_map: Default::default(),
-            order_map: Default::default(),
+            bot_map: LookupMap::new(b"bots".to_vec()),
+            order_map: LookupMap::new(b"orders".to_vec()),
             next_bot_id: 0,
-            oracle_price_map: Default::default(),
-            pair_map: Default::default(),
-            protocol_fee_map: Default::default(),
-            global_balances_map: Default::default(),
-            user_balances_map: Default::default(),
-            user_locked_balances_map: Default::default(),
+            oracle_price_map: LookupMap::new(b"oracle".to_vec()),
+            pair_map: LookupMap::new(b"pairs".to_vec()),
+            protocol_fee_map: LookupMap::new(b"protocol".to_vec()),
+            global_balances_map: LookupMap::new(b"global".to_vec()),
+            user_balances_map: LookupMap::new(UserBalanceAvailableStorageKey::ComplexMap),
+            user_locked_balances_map: LookupMap::new(UserBalanceLockedStorageKey::ComplexMap),
         }
     }
 }

@@ -8,13 +8,13 @@ impl GridBotContract {
 
     pub fn internal_get_user_balance(&self, user: &AccountId, token: &AccountId) -> U128C {
         return self.user_balances_map.get(user)
-            .and_then(|balances| balances.get(token).cloned())
+            .and_then(|balances| balances.get(token))
             .unwrap_or(U128C::from(0));
     }
 
     pub fn internal_get_user_locked_balance(&self, user: &AccountId, token: &AccountId) -> U128C {
         return self.user_locked_balances_map.get(user)
-            .and_then(|balances| balances.get(token).cloned())
+            .and_then(|balances| balances.get(token))
             .unwrap_or(U128C::from(0));
     }
 

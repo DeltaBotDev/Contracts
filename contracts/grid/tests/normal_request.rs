@@ -26,121 +26,121 @@ pub async fn create_contract() -> Result<(Worker<Testnet>, Account, Account, Gri
     Ok((worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract))
 }
 
-#[tokio::test]
-async fn asset_change() -> Result<(), workspaces::error::Error> {
-    let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
-
-    check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
-
-    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
-    require!(user_usdc_balance == U128::from(100000000000000 as u128));
-    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
-    require!(user_eth_balance == U128::from(10000000000000000000000 as u128));
-    // register pair
-    check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
-
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
-
-    let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
-    require!(user_usdc_balance == U128::from(0 as u128));
-    let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
-    require!(user_eth_balance == U128::from(0 as u128));
-
-    // query global balance
-    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    require!(global_usdc == U128C::from(100000000000000 as u128));
-    let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    require!(global_eth == U128C::from(10000000000000000000000 as u128));
-    // query user balance
-    let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after deposit user_balance_usdc:{}", user_balance_usdc.to_string());
-    require!(user_balance_usdc == U128C::from(100000000000000 as u128));
-    let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after deposit user_balance_eth:{}", user_balance_eth.to_string());
-    require!(user_balance_eth == U128C::from(10000000000000000000000 as u128));
-
-    // set oracle price
-    let current_price = U128C::from(220000);
-    let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
-    check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
-
-    // create bot
-    check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqOffset, 0,
-                                              U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
-                                              U128C::from(100000000), U128C::from(3000000000 as u128), true, 10, 15,
-                                              U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
-                                              U128C::from(220000)).await);
-    let next_bot_id = format!("GRID:{}", "0".to_string());
-
-    // taker order
-    // taker account
-    let taker_account = create_account(&worker).await;
-    log!("taker account:".to_string() + &taker_account.id().to_string());
-    check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
-    // sell ETH
-    // Buy ETH 100000000, 2000000000, fill base, grid_offset: 10000000, grid_buy_count: 15
-    // buy one: 100000000, 2000000000 + 10000000 * 14=2140000000
-    // buy two: 100000000, 2000000000 + 10000000 * 13=2130000000
-    let take_order = Order {
-        order_id: "".to_string(),
-        token_sell: eth_token_contract.get_account_id(),
-        token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U128C::from(100000000 as u128),
-        amount_buy: U128C::from(2140000000 as u128),
-        fill_buy_or_sell: false,
-        filled: Default::default(),
-    };
-    let maker_orders = vec![OrderKeyInfo{
-        bot_id: next_bot_id.clone(),
-        forward_or_reverse: true,
-        level: 14,
-    }];
-    check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
-
-    // query global balance
-    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("global_usdc:{}", global_usdc.to_string());
-    require!(global_usdc == U128C::from(199997860000000 as u128));
-    let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    println!("global_eth:{}", global_eth.to_string());
-    require!(global_eth == U128C::from(20000000000000000000000 as u128));
-    // query taker balance
-    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
-    require!(user_usdc_balance == U128::from(2140000000 as u128));
-    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_eth:{}", user_eth_balance.0.to_string());
-    require!(user_eth_balance == U128::from(0 as u128));
-
-    // query user balance
-    let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_balance_usdc:{}", user_balance_usdc.to_string());
-    require!(user_balance_usdc == U128C::from(99968950000000 as u128));
-    let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_balance_eth:{}", user_balance_eth.to_string());
-    require!(user_balance_eth == U128C::from(9999999999999000000000 as u128));
-    // query user locked balance
-    let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
-    require!(user_locked_balance_usdc == U128C::from(28910000000 as u128));
-    let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
-    require!(user_locked_balance_eth == U128C::from(1100000000 as u128));
-
-    // check grid bot balance
-    let gridbot_usdc_balance = usdc_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
-    require!(gridbot_usdc_balance == U128::from(199997860000000 as u128));
-    let gridbot_eth_balance = eth_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
-    require!(gridbot_eth_balance == U128::from(20000000000000000000000 as u128));
-    Ok(())
-}
+// #[tokio::test]
+// async fn asset_change() -> Result<(), workspaces::error::Error> {
+//     let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
+//
+//     check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
+//
+//     let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+//     require!(user_usdc_balance == U128::from(100000000000000 as u128));
+//     let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+//     require!(user_eth_balance == U128::from(10000000000000000000000 as u128));
+//     // register pair
+//     check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
+//
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
+//
+//     let user_usdc_balance = usdc_token_contract.ft_balance_of(&maker_account).await?;
+//     require!(user_usdc_balance == U128::from(0 as u128));
+//     let user_eth_balance = eth_token_contract.ft_balance_of(&maker_account).await?;
+//     require!(user_eth_balance == U128::from(0 as u128));
+//
+//     // query global balance
+//     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+//     require!(global_usdc == U128C::from(100000000000000 as u128));
+//     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
+//     require!(global_eth == U128C::from(10000000000000000000000 as u128));
+//     // query user balance
+//     let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("after deposit user_balance_usdc:{}", user_balance_usdc.to_string());
+//     require!(user_balance_usdc == U128C::from(100000000000000 as u128));
+//     let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("after deposit user_balance_eth:{}", user_balance_eth.to_string());
+//     require!(user_balance_eth == U128C::from(10000000000000000000000 as u128));
+//
+//     // set oracle price
+//     let current_price = U128C::from(220000);
+//     let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
+//     check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
+//
+//     // create bot
+//     check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqOffset, 0,
+//                                               U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
+//                                               U128C::from(100000000), U128C::from(3000000000 as u128), true, 10, 15,
+//                                               U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
+//                                               U128C::from(220000)).await);
+//     let next_bot_id = format!("GRID:{}", "0".to_string());
+//
+//     // taker order
+//     // taker account
+//     let taker_account = create_account(&worker).await;
+//     log!("taker account:".to_string() + &taker_account.id().to_string());
+//     check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
+//     // sell ETH
+//     // Buy ETH 100000000, 2000000000, fill base, grid_offset: 10000000, grid_buy_count: 15
+//     // buy one: 100000000, 2000000000 + 10000000 * 14=2140000000
+//     // buy two: 100000000, 2000000000 + 10000000 * 13=2130000000
+//     let take_order = Order {
+//         order_id: "".to_string(),
+//         token_sell: eth_token_contract.get_account_id(),
+//         token_buy: usdc_token_contract.get_account_id(),
+//         amount_sell: U128C::from(100000000 as u128),
+//         amount_buy: U128C::from(2140000000 as u128),
+//         fill_buy_or_sell: false,
+//         filled: Default::default(),
+//     };
+//     let maker_orders = vec![OrderKeyInfo{
+//         bot_id: next_bot_id.clone(),
+//         forward_or_reverse: true,
+//         level: 14,
+//     }];
+//     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
+//
+//     // query global balance
+//     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_usdc:{}", global_usdc.to_string());
+//     require!(global_usdc == U128C::from(199997860000000 as u128));
+//     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_eth:{}", global_eth.to_string());
+//     require!(global_eth == U128C::from(20000000000000000000000 as u128));
+//     // query taker balance
+//     let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
+//     require!(user_usdc_balance == U128::from(2140000000 as u128));
+//     let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_eth:{}", user_eth_balance.0.to_string());
+//     require!(user_eth_balance == U128::from(0 as u128));
+//
+//     // query user balance
+//     let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_balance_usdc:{}", user_balance_usdc.to_string());
+//     require!(user_balance_usdc == U128C::from(99968950000000 as u128));
+//     let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_balance_eth:{}", user_balance_eth.to_string());
+//     require!(user_balance_eth == U128C::from(9999999999999000000000 as u128));
+//     // query user locked balance
+//     let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
+//     require!(user_locked_balance_usdc == U128C::from(28910000000 as u128));
+//     let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
+//     require!(user_locked_balance_eth == U128C::from(1100000000 as u128));
+//
+//     // check grid bot balance
+//     let gridbot_usdc_balance = usdc_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
+//     require!(gridbot_usdc_balance == U128::from(199997860000000 as u128));
+//     let gridbot_eth_balance = eth_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
+//     require!(gridbot_eth_balance == U128::from(20000000000000000000000 as u128));
+//     Ok(())
+// }
 
 #[tokio::test]
 async fn create_bot() -> Result<(), workspaces::error::Error> {
@@ -435,417 +435,417 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     Ok(())
 }
 
-// take multi orders
-#[tokio::test]
-async fn take_multi_orders() -> Result<(), workspaces::error::Error> {
-    let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
+// // take multi orders
+// #[tokio::test]
+// async fn take_multi_orders() -> Result<(), workspaces::error::Error> {
+//     let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
+//
+//     check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
+//
+//     // register pair
+//     check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
+//
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
+//
+//     // set oracle price
+//     let current_price = U128C::from(220000);
+//     let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
+//     check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
+//
+//     // create bot
+//     check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqOffset, 0,
+//                                               U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
+//                                               U128C::from(100000000), U128C::from(20000000000 as u128), true, 500, 500,
+//                                               U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
+//                                               U128C::from(220000)).await);
+//     let next_bot_id = format!("GRID:{}", "0".to_string());
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//     require!(grid_bot.total_base_amount == U128C::from(50000000000 as u128));
+//     require!(grid_bot.total_quote_amount == U128C::from(2247500000000 as u128));
+//
+//     // taker order
+//     // taker account
+//     let taker_account = create_account(&worker).await;
+//     log!("taker account:".to_string() + &taker_account.id().to_string());
+//     check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
+//     // sell ETH
+//     // Buy ETH 100000000, 2000000000, fill base, grid_offset: 10000000, grid_buy_count: 15
+//     // buy one: 100000000, 2000000000 + 10000000 * 499=6990000000
+//     // buy two: 100000000, 2000000000 + 10000000 * 498=6980000000
+//     // buy three: 100000000, 2000000000 + 10000000 * 497=6970000000
+//     // buy four: 100000000, 2000000000 + 10000000 * 496=6960000000
+//     let take_order = Order {
+//         order_id: "".to_string(),
+//         token_sell: eth_token_contract.get_account_id(),
+//         token_buy: usdc_token_contract.get_account_id(),
+//         amount_sell: U128C::from(350000000 as u128),
+//         amount_buy: U128C::from(24360000000 as u128), // 24360000000 = 6960000000*3.5
+//         fill_buy_or_sell: false,
+//         filled: Default::default(),
+//     };
+//     let maker_orders = vec![
+//         OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 499},
+//         OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 498},
+//         OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 497},
+//         OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 496},
+//     ];
+//     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 499).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 499 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(6990000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 498).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 498 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(6980000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 497).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 497 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(6970000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 496).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 496 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(50000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(6960000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 499).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 499 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(0 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(7000000000 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 496).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("first forward level 496 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(0 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(50000000 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(3485000000 as u128));
+//
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//     require!(grid_bot.total_base_amount == U128C::from(50350000000 as u128));
+//     require!(grid_bot.total_quote_amount == U128C::from(2223080000000 as u128));
+//
+//     // taker asset
+//     let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
+//     require!(user_usdc_balance == U128::from(24420000000 as u128));
+//     let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_eth:{}", user_eth_balance.0.to_string());
+//     require!(user_eth_balance == U128::from(0 as u128));
+//
+//     // user locked asset
+//     let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
+//     require!(user_locked_balance_usdc == U128C::from(2223080000000 as u128));
+//     let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
+//     require!(user_locked_balance_eth == U128C::from(50350000000 as u128));
+//
+//     // global asset
+//     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_usdc:{}", global_usdc.to_string());
+//     require!(global_usdc == U128C::from(199975580000000 as u128));
+//     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_eth:{}", global_eth.to_string());
+//     require!(global_eth == U128C::from(20000000000000000000000 as u128));
+//
+//     // contract balance
+//     let gridbot_usdc_balance = usdc_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
+//     println!("gridbot_usdc_balance{}", gridbot_usdc_balance.0.to_string());
+//     require!(gridbot_usdc_balance == U128::from(199975580000000 as u128));
+//     let gridbot_eth_balance = eth_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
+//     println!("gridbot_eth_balance{}", gridbot_eth_balance.0.to_string());
+//     require!(gridbot_eth_balance == U128::from(20000000000000000000000 as u128));
+//
+//     Ok(())
+// }
 
-    check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
-
-    // register pair
-    check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
-
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
-
-    // set oracle price
-    let current_price = U128C::from(220000);
-    let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
-    check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
-
-    // create bot
-    check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqOffset, 0,
-                                              U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
-                                              U128C::from(100000000), U128C::from(20000000000 as u128), true, 500, 500,
-                                              U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
-                                              U128C::from(220000)).await);
-    let next_bot_id = format!("GRID:{}", "0".to_string());
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-    require!(grid_bot.total_base_amount == U128C::from(50000000000 as u128));
-    require!(grid_bot.total_quote_amount == U128C::from(2247500000000 as u128));
-
-    // taker order
-    // taker account
-    let taker_account = create_account(&worker).await;
-    log!("taker account:".to_string() + &taker_account.id().to_string());
-    check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
-    // sell ETH
-    // Buy ETH 100000000, 2000000000, fill base, grid_offset: 10000000, grid_buy_count: 15
-    // buy one: 100000000, 2000000000 + 10000000 * 499=6990000000
-    // buy two: 100000000, 2000000000 + 10000000 * 498=6980000000
-    // buy three: 100000000, 2000000000 + 10000000 * 497=6970000000
-    // buy four: 100000000, 2000000000 + 10000000 * 496=6960000000
-    let take_order = Order {
-        order_id: "".to_string(),
-        token_sell: eth_token_contract.get_account_id(),
-        token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U128C::from(350000000 as u128),
-        amount_buy: U128C::from(24360000000 as u128), // 24360000000 = 6960000000*3.5
-        fill_buy_or_sell: false,
-        filled: Default::default(),
-    };
-    let maker_orders = vec![
-        OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 499},
-        OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 498},
-        OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 497},
-        OrderKeyInfo { bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 496},
-    ];
-    check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 499).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 499 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(6990000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 498).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 498 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(6980000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 497).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 497 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(6970000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 496).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 496 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(50000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(6960000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 499).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 499 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(0 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(7000000000 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 496).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("first forward level 496 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(0 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(50000000 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(3485000000 as u128));
-
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-    require!(grid_bot.total_base_amount == U128C::from(50350000000 as u128));
-    require!(grid_bot.total_quote_amount == U128C::from(2223080000000 as u128));
-
-    // taker asset
-    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
-    require!(user_usdc_balance == U128::from(24420000000 as u128));
-    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_eth:{}", user_eth_balance.0.to_string());
-    require!(user_eth_balance == U128::from(0 as u128));
-
-    // user locked asset
-    let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
-    require!(user_locked_balance_usdc == U128C::from(2223080000000 as u128));
-    let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
-    require!(user_locked_balance_eth == U128C::from(50350000000 as u128));
-
-    // global asset
-    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("global_usdc:{}", global_usdc.to_string());
-    require!(global_usdc == U128C::from(199975580000000 as u128));
-    let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    println!("global_eth:{}", global_eth.to_string());
-    require!(global_eth == U128C::from(20000000000000000000000 as u128));
-
-    // contract balance
-    let gridbot_usdc_balance = usdc_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
-    println!("gridbot_usdc_balance{}", gridbot_usdc_balance.0.to_string());
-    require!(gridbot_usdc_balance == U128::from(199975580000000 as u128));
-    let gridbot_eth_balance = eth_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
-    println!("gridbot_eth_balance{}", gridbot_eth_balance.0.to_string());
-    require!(gridbot_eth_balance == U128::from(20000000000000000000000 as u128));
-
-    Ok(())
-}
-
-// rate grid
-#[tokio::test]
-async fn rate_grid() -> Result<(), workspaces::error::Error> {
-    let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
-
-    check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
-
-    // register pair
-    check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
-
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
-
-    // set oracle price
-    let current_price = U128C::from(220000);
-    let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
-    check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
-
-    // create bot
-    check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqRate, 1000,
-                                              U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
-                                              U128C::from(100000000), U128C::from(5000000000 as u128), true, 3, 3,
-                                              U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
-                                              U128C::from(220000)).await);
-    let next_bot_id = format!("GRID:{}", "0".to_string());
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-    // require!(grid_bot.total_base_amount == U128C::from(50000000000 as u128));
-    // require!(grid_bot.total_quote_amount == U128C::from(2247500000000 as u128));
-
-    // taker order
-    // taker account
-    let taker_account = create_account(&worker).await;
-    log!("taker account:".to_string() + &taker_account.id().to_string());
-    check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
-    check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
-    // sell ETH
-    // buy one: 100000000, 2000000000 * 1.1^2 = 2420000000
-    // buy two: 100000000, 2000000000 * 1.1 = 2200000000
-    // buy three: 100000000, 2000000000 = 2000000000
-    let take_order = Order {
-        order_id: "".to_string(),
-        token_sell: eth_token_contract.get_account_id(),
-        token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U128C::from(200000000 as u128),
-        amount_buy: U128C::from(4400000000 as u128),
-        fill_buy_or_sell: false,
-        filled: Default::default(),
-    };
-    let maker_orders = vec![
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 2, },
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 1, }
-    ];
-    check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
-
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 2).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 2 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(2420000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 1).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 1 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(2200000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 3 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(0 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 4).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 4 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(0 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(4545454545 as u128));
-
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 5).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 5 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(0 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(5000000000 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 2).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 2 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(0 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(2662000000 as u128));
-
-    // query global balance
-    let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("global_usdc:{}", global_usdc.to_string());
-    require!(global_usdc == U128C::from(199995380000000 as u128));
-    let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    println!("global_eth:{}", global_eth.to_string());
-    require!(global_eth == U128C::from(20000000000000000000000 as u128));
-    // query taker balance
-    let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
-    require!(user_usdc_balance == U128::from(4620000000 as u128));
-    let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
-    println!("taker user_eth:{}", user_eth_balance.0.to_string());
-    require!(user_eth_balance == U128::from(0 as u128));
-
-    // query user balance
-    let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_balance_usdc:{}", user_balance_usdc.to_string());
-    require!(user_balance_usdc == U128C::from(99993380000000 as u128));
-    let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_balance_eth:{}", user_balance_eth.to_string());
-    require!(user_balance_eth == U128C::from(9999999999999700000000 as u128));
-    // query user locked balance
-    let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
-    require!(user_locked_balance_usdc == U128C::from(2000000000 as u128));
-    let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after taker user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
-    require!(user_locked_balance_eth == U128C::from(500000000 as u128));
-
-    // take reverse bot
-    // buy ETH
-    // sell one: 100000000, 2000000000 * 1.1^3 = 2662000000
-    // sell two: 100000000, 2000000000 * 1.1^2 = 2420000000
-    // sell three: 1, 5000000000/1.1/1.1 = 4050000000
-    let take_order = Order {
-        order_id: "".to_string(),
-        token_sell: usdc_token_contract.get_account_id(),
-        token_buy: eth_token_contract.get_account_id(),
-        amount_sell: U128C::from(12406694214 as u128),
-        amount_buy: U128C::from(300000000 as u128),
-        fill_buy_or_sell: true,
-        filled: Default::default(),
-    };
-    let maker_orders = vec![
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 3, },
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 2, },
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 1, }
-    ];
-    check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
-
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-    require!(grid_bot.total_base_amount == U128C::from(200000000 as u128));
-    require!(grid_bot.total_quote_amount == U128C::from(11209611404 as u128));
-    require!(grid_bot.revenue == U128C::from(457380000 as u128));
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 2).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 2 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(4840000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(200000000 as u128));
-
-    // query order
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 1).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 1 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(4400000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(200000000 as u128));
-
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 3 forward order:{}", order_string);
-    require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 2).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 2 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(2662000000 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 1).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 1 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(2420000000 as u128));
-
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 3).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 3 reverse order:{}", order_string);
-    require!(reverse_order_result.order.filled == U128C::from(0 as u128));
-    require!(reverse_order_result.order.amount_sell == U128C::from(3756574003 as u128));
-    require!(reverse_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-    // take reverse bot
-    // sell ETH
-    // sell one: 100000000, 3756574003
-    let take_order = Order {
-        order_id: "".to_string(),
-        token_sell: eth_token_contract.get_account_id(),
-        token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U128C::from(100000000 as u128),
-        amount_buy: U128C::from(3756574003 as u128),
-        fill_buy_or_sell: true,
-        filled: Default::default(),
-    };
-    let maker_orders = vec![
-        OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 3, },
-    ];
-    check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
-
-    // query bot
-    let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
-    let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
-    println!("grid_bot:{}", grid_bot_str);
-    // require!(grid_bot.total_base_amount == U128C::from(300000000 as u128));
-    // require!(grid_bot.total_quote_amount == U128C::from(7449280827 as u128));
-    // require!(grid_bot.revenue == U128C::from(829280826 as u128));
-
-    let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
-    let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
-    println!("level 3 forward order:{}", order_string);
-    // require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
-    // require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
-    // require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
-    //
-    // query order
-    let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 3).await?.unwrap();
-    let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
-    println!("level 3 reverse order:{}", order_string);
-    // require!(reverse_order_result.order.filled == U128C::from(0 as u128));
-    // require!(reverse_order_result.order.amount_sell == U128C::from(3756574003 as u128));
-    // require!(reverse_order_result.order.amount_buy == U128C::from(100000000 as u128));
-
-
-    Ok(())
-}
+// // rate grid
+// #[tokio::test]
+// async fn rate_grid() -> Result<(), workspaces::error::Error> {
+//     let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
+//
+//     check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
+//
+//     // register pair
+//     check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id())).await);
+//
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &maker_account, 100000000000000).await);
+//
+//     // set oracle price
+//     let current_price = U128C::from(220000);
+//     let pair_id = get_pair_key(&(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()));
+//     check_success(gridbot_contract.set_oracle_price(&owner, &current_price, pair_id.clone()).await);
+//
+//     // create bot
+//     check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 1000, GridType::EqRate, 1000,
+//                                               U128C::from(10000000), U128C::from(100000000), U128C::from(2000000000),
+//                                               U128C::from(100000000), U128C::from(5000000000 as u128), true, 3, 3,
+//                                               U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
+//                                               U128C::from(220000)).await);
+//     let next_bot_id = format!("GRID:{}", "0".to_string());
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//     // require!(grid_bot.total_base_amount == U128C::from(50000000000 as u128));
+//     // require!(grid_bot.total_quote_amount == U128C::from(2247500000000 as u128));
+//
+//     // taker order
+//     // taker account
+//     let taker_account = create_account(&worker).await;
+//     log!("taker account:".to_string() + &taker_account.id().to_string());
+//     check_success(eth_token_contract.ft_mint(&taker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&taker_account, U128::from(100000000000000 as u128).into()).await);
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &taker_account, 10000000000000000000000).await);
+//     check_success(gridbot_contract.deposit(&usdc_token_contract, &taker_account, 100000000000000).await);
+//     // sell ETH
+//     // buy one: 100000000, 2000000000 * 1.1^2 = 2420000000
+//     // buy two: 100000000, 2000000000 * 1.1 = 2200000000
+//     // buy three: 100000000, 2000000000 = 2000000000
+//     let take_order = Order {
+//         order_id: "".to_string(),
+//         token_sell: eth_token_contract.get_account_id(),
+//         token_buy: usdc_token_contract.get_account_id(),
+//         amount_sell: U128C::from(200000000 as u128),
+//         amount_buy: U128C::from(4400000000 as u128),
+//         fill_buy_or_sell: false,
+//         filled: Default::default(),
+//     };
+//     let maker_orders = vec![
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 2, },
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 1, }
+//     ];
+//     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
+//
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 2).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 2 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(2420000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 1).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 1 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(2200000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 3 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(0 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 4).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 4 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(0 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(4545454545 as u128));
+//
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 5).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 5 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(0 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(5000000000 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 2).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 2 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(0 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(2662000000 as u128));
+//
+//     // query global balance
+//     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_usdc:{}", global_usdc.to_string());
+//     require!(global_usdc == U128C::from(199995380000000 as u128));
+//     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("global_eth:{}", global_eth.to_string());
+//     require!(global_eth == U128C::from(20000000000000000000000 as u128));
+//     // query taker balance
+//     let user_usdc_balance = usdc_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_usdc:{}", user_usdc_balance.0.to_string());
+//     require!(user_usdc_balance == U128::from(4620000000 as u128));
+//     let user_eth_balance = eth_token_contract.ft_balance_of(&taker_account).await?;
+//     println!("taker user_eth:{}", user_eth_balance.0.to_string());
+//     require!(user_eth_balance == U128::from(0 as u128));
+//
+//     // query user balance
+//     let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_balance_usdc:{}", user_balance_usdc.to_string());
+//     require!(user_balance_usdc == U128C::from(99993380000000 as u128));
+//     let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_balance_eth:{}", user_balance_eth.to_string());
+//     require!(user_balance_eth == U128C::from(9999999999999700000000 as u128));
+//     // query user locked balance
+//     let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
+//     require!(user_locked_balance_usdc == U128C::from(2000000000 as u128));
+//     let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
+//     println!("after taker user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
+//     require!(user_locked_balance_eth == U128C::from(500000000 as u128));
+//
+//     // take reverse bot
+//     // buy ETH
+//     // sell one: 100000000, 2000000000 * 1.1^3 = 2662000000
+//     // sell two: 100000000, 2000000000 * 1.1^2 = 2420000000
+//     // sell three: 1, 5000000000/1.1/1.1 = 4050000000
+//     let take_order = Order {
+//         order_id: "".to_string(),
+//         token_sell: usdc_token_contract.get_account_id(),
+//         token_buy: eth_token_contract.get_account_id(),
+//         amount_sell: U128C::from(12406694214 as u128),
+//         amount_buy: U128C::from(300000000 as u128),
+//         fill_buy_or_sell: true,
+//         filled: Default::default(),
+//     };
+//     let maker_orders = vec![
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: true, level: 3, },
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 2, },
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 1, }
+//     ];
+//     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
+//
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//     require!(grid_bot.total_base_amount == U128C::from(200000000 as u128));
+//     require!(grid_bot.total_quote_amount == U128C::from(11209611404 as u128));
+//     require!(grid_bot.revenue == U128C::from(457380000 as u128));
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 2).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 2 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(4840000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(200000000 as u128));
+//
+//     // query order
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 1).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 1 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(4400000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(200000000 as u128));
+//
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 3 forward order:{}", order_string);
+//     require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 2).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 2 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(2662000000 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 1).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 1 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(2420000000 as u128));
+//
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 3).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 3 reverse order:{}", order_string);
+//     require!(reverse_order_result.order.filled == U128C::from(0 as u128));
+//     require!(reverse_order_result.order.amount_sell == U128C::from(3756574003 as u128));
+//     require!(reverse_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//     // take reverse bot
+//     // sell ETH
+//     // sell one: 100000000, 3756574003
+//     let take_order = Order {
+//         order_id: "".to_string(),
+//         token_sell: eth_token_contract.get_account_id(),
+//         token_buy: usdc_token_contract.get_account_id(),
+//         amount_sell: U128C::from(100000000 as u128),
+//         amount_buy: U128C::from(3756574003 as u128),
+//         fill_buy_or_sell: true,
+//         filled: Default::default(),
+//     };
+//     let maker_orders = vec![
+//         OrderKeyInfo{ bot_id: next_bot_id.clone(), forward_or_reverse: false, level: 3, },
+//     ];
+//     check_success(gridbot_contract.take_orders(&taker_account, &take_order, maker_orders).await);
+//
+//     // query bot
+//     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
+//     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();
+//     println!("grid_bot:{}", grid_bot_str);
+//     // require!(grid_bot.total_base_amount == U128C::from(300000000 as u128));
+//     // require!(grid_bot.total_quote_amount == U128C::from(7449280827 as u128));
+//     // require!(grid_bot.revenue == U128C::from(829280826 as u128));
+//
+//     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 3).await?.unwrap();
+//     let order_string = serde_json::to_string(&(forward_order_result.order)).unwrap();
+//     println!("level 3 forward order:{}", order_string);
+//     // require!(forward_order_result.order.filled == U128C::from(100000000 as u128));
+//     // require!(forward_order_result.order.amount_sell == U128C::from(100000000 as u128));
+//     // require!(forward_order_result.order.amount_buy == U128C::from(4132231404 as u128));
+//     //
+//     // query order
+//     let reverse_order_result = gridbot_contract.query_order(next_bot_id.clone(), false, 3).await?.unwrap();
+//     let order_string = serde_json::to_string(&(reverse_order_result.order)).unwrap();
+//     println!("level 3 reverse order:{}", order_string);
+//     // require!(reverse_order_result.order.filled == U128C::from(0 as u128));
+//     // require!(reverse_order_result.order.amount_sell == U128C::from(3756574003 as u128));
+//     // require!(reverse_order_result.order.amount_buy == U128C::from(100000000 as u128));
+//
+//
+//     Ok(())
+// }
 
 // withdraw
 

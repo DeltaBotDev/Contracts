@@ -61,9 +61,10 @@ impl GridBotContract {
         }
         return false;
     }
-
+    // TODO need check again, and test
     pub fn internal_get_first_forward_order(grid_bot: GridBot, pair: Pair, level: usize) -> Order {
         let mut order = Order{
+            // TODO can remove
             order_id: level.to_string(),
             token_sell: pair.base_token.clone(),
             token_buy: pair.quote_token.clone(),
@@ -141,6 +142,8 @@ impl GridBotContract {
             if grid_type == EqOffset {
                 first_quote_amount * grid_buy_count_u128.clone() + grid_offset * (grid_buy_count_u128.clone() - U128C::from(1)) * grid_buy_count_u128.clone() / U128C::from(2)
             } else {
+                // gridRate=0.1, 1.1
+                // 1.1^0 + 1.1^1 + 1.1^2 + ... + 1.1^n
                 let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_buy_count.clone() as u64, grid_rate.clone() as u64);
                 U128C::from(BigDecimal::from(first_quote_amount.clone().as_u128()).mul(geometric_series_sum).round_down_u128())
             }
@@ -158,7 +161,9 @@ impl GridBotContract {
             if grid_type == EqOffset {
                 last_base_amount * grid_sell_count_u128.clone() + grid_offset * (grid_sell_count_u128.clone() - U128C::from(1)) * grid_sell_count_u128.clone() / U128C::from(2)
             } else {
-                let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum_for_sell(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
+                // let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum_for_sell(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
+                // U128C::from(BigDecimal::from(last_base_amount.clone().as_u128()).mul(geometric_series_sum).round_down_u128())
+                let geometric_series_sum = GridBotContract::private_calculate_rate_bot_geometric_series_sum(grid_sell_count.clone() as u64, grid_rate.clone() as u64);
                 U128C::from(BigDecimal::from(last_base_amount.clone().as_u128()).mul(geometric_series_sum).round_down_u128())
             }
         };
@@ -173,11 +178,11 @@ impl GridBotContract {
         return sum;
     }
 
-    fn private_calculate_rate_bot_geometric_series_sum_for_sell(n: u64, delta_r: u64) -> BigDecimal {
-        let scale = BigDecimal::from(1 as u64);
-        let a = scale;   // 1.0 * scale
-        let r = BigDecimal::from(1 as u64).div(BigDecimal::from(delta_r).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u128)).add(BigDecimal::from(1 as u64)));
-        let sum = a.mul(r.pow(n).sub(scale)).div(r.sub(scale));
-        return sum;
-    }
+    // fn private_calculate_rate_bot_geometric_series_sum_for_sell(n: u64, delta_r: u64) -> BigDecimal {
+    //     let scale = BigDecimal::from(1 as u64);
+    //     let a = scale;   // 1.0 * scale
+    //     let r = BigDecimal::from(1 as u64).div(BigDecimal::from(delta_r).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u128)).add(BigDecimal::from(1 as u64)));
+    //     let sum = a.mul(r.pow(n).sub(scale)).div(r.sub(scale));
+    //     return sum;
+    // }
 }
