@@ -14,8 +14,9 @@ impl GridBotContract {
                       entry_price: U256C) -> String {
         require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
-        // TODO check all div need Bigdecimal
-        require!(last_quote_amount / last_base_amount > first_quote_amount / first_base_amount, INVALID_FIRST_OR_LAST_AMOUNT);
+        // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
+        // amount must u128, u128 * u128 <= u256, so, it's ok
+        require!(last_quote_amount * first_base_amount > first_quote_amount * last_base_amount , INVALID_FIRST_OR_LAST_AMOUNT);
         // got oracle price
         require!(self.internal_check_oracle_price(entry_price, pair_id.clone(), slippage) , ORACLE_PRICE_EXCEPTION);
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);

@@ -233,7 +233,7 @@ impl GridBotContract {
             // current_filled token is forward_order's sell token
             // revenue token is forward_order's buy token
             let forward_bought = current_filled.clone() * opposite_order.amount_buy / opposite_order.amount_sell;
-            let reverse_sold = current_filled.clone() * order.amount_sell / order.amount_buy.as_u128();
+            let reverse_sold = current_filled.clone() * order.amount_sell / order.amount_buy;
             require!(forward_bought >= reverse_sold, INVALID_REVENUE);
             revenue_token = opposite_order.token_buy;
             revenue = forward_bought - reverse_sold;
