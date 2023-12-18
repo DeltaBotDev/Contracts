@@ -168,6 +168,11 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
                                               U128C::from(0), U128C::from(0), U128C::from(0), U128C::from(get_time_stamp() * 1000 + 36000000),
                                               U128C::from(220000)).await);
     let next_bot_id = format!("GRID:{}", "0".to_string());
+    // query storage fee
+    let storage_fee = gridbot_contract.query_storage_fee().await.unwrap();
+    println!("storage_fee:{}", storage_fee.to_string());
+    require!(storage_fee == U128C::from(10000000000000000000000 as u128));
+
     // query bot
     let grid_bot = gridbot_contract.query_bot(next_bot_id.clone()).await?.unwrap();
     let grid_bot_str = serde_json::to_string(&(grid_bot)).unwrap();

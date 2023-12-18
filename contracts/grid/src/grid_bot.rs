@@ -12,8 +12,7 @@ impl GridBotContract {
                       last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
                       entry_price: U128C) -> String {
-        // TODO got near storage fee
-        assert_one_yocto();
+        require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         // TODO check all div need Bigdecimal
         require!(last_quote_amount / last_base_amount > first_quote_amount / first_base_amount, INVALID_FIRST_OR_LAST_AMOUNT);
@@ -56,6 +55,9 @@ impl GridBotContract {
 
         // insert bot
         self.bot_map.insert(&(next_bot_id.clone()), &new_grid_bot);
+
+        // record storage fee
+        self.storage_fee += env::attached_deposit();
         return next_bot_id.clone();
     }
 

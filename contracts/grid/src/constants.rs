@@ -19,6 +19,8 @@ pub const MAX_PROTOCOL_FEE: u128 = 100000;
 /// protocol fee denominator
 pub const PROTOCOL_FEE_DENOMINATOR: u128 = 1000000;
 
+pub const STORAGE_FEE: u128 = 10_000_000_000_000_000_000_000; // 0.01Near
+
 /// self.order_map[bot_id][FORWARD_ORDERS_INDEX]
 pub const FORWARD_ORDERS_INDEX: u64 = 0;
 /// self.order_map[bot_id][REVERSE_ORDERS_INDEX]

@@ -83,7 +83,7 @@ impl GridBotHelper {
                 "entry_price": entry_price,
             }))
             .gas(300_000_000_000_000)
-            .deposit(1)
+            .deposit(10_000_000_000_000_000_000_000)
             .transact()
             .await
     }
@@ -322,5 +322,16 @@ impl GridBotHelper {
             .view()
             .await?
             .json::<Option<U128C>>()
+    }
+
+    pub async fn query_storage_fee(&self) -> Result<U128C, workspaces::error::Error> {
+        log!("start query_storage_fee");
+        self.0
+            .call("query_storage_fee")
+            // .args_json(json!({
+            // }))
+            .view()
+            .await?
+            .json::<U128C>()
     }
 }

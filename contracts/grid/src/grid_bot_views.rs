@@ -45,4 +45,8 @@ impl GridBotContract {
     pub fn query_protocol_fee_rate(&self) -> U128C {
         return U128C::from(self.protocol_fee_rate.clone());
     }
+
+    pub fn query_storage_fee(&self) -> U128C {
+        return U128C::from(self.storage_fee.clone());
+    }
 }
