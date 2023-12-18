@@ -47,11 +47,11 @@ pub struct GridBotContract {
     pub oracle_price_map: LookupMap<String, OraclePrice>,
     /// pair_map[base_token_addr+":"+quote_token_addr] = Pair
     pub pair_map: LookupMap<String, Pair>,
-    pub protocol_fee_map: LookupMap<AccountId, U128C>,
+    pub protocol_fee_map: LookupMap<AccountId, U256C>,
     pub storage_fee: u128,
-    pub global_balances_map: LookupMap<AccountId, U128C>,
-    pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U128C>>,
-    pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U128C>>,
+    pub global_balances_map: LookupMap<AccountId, U256C>,
+    pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
 }
 
 #[near_bindgen]

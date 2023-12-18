@@ -8,10 +8,10 @@ impl GridBotContract {
 
     #[payable]
     pub fn create_bot(&mut self, pair_id: String, slippage: u16, grid_type: GridType,
-                      grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
-                      last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
-                      trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
-                      entry_price: U128C) -> String {
+                      grid_rate: u16, grid_offset: U256C, first_base_amount: U256C, first_quote_amount: U256C,
+                      last_base_amount: U256C, last_quote_amount: U256C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
+                      trigger_price: U256C, take_profit_price: U256C, stop_loss_price: U256C, valid_until_time: U256C,
+                      entry_price: U256C) -> String {
         require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         // TODO check all div need Bigdecimal
@@ -48,7 +48,7 @@ impl GridBotContract {
             grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
             first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
             trigger_price, trigger_price_above_or_below: false, take_profit_price, stop_loss_price, valid_until_time,
-            total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U128C::from(0)
+            total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0)
         };
         // init active status of bot
         self.internal_init_bot_status(&mut new_grid_bot, entry_price);
@@ -99,8 +99,8 @@ impl GridBotContract {
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
         let user = env::predecessor_account_id();
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
-        let mut took_amount_sell = U128C::from(0);
-        let mut took_amount_buy = U128C::from(0);
+        let mut took_amount_sell = U256C::from(0);
+        let mut took_amount_buy = U256C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
             let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
@@ -153,7 +153,7 @@ impl GridBotContract {
     //################################################## Owner #####################################
 
     #[payable]
-    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId, amount: U128C) {
+    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId, amount: U256C) {
         self.assert_owner();
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
         let protocol_fee = self.internal_get_protocol_fee(&token);
@@ -182,7 +182,7 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U128C) {
+    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U256C) {
         self.assert_owner();
         require!(new_protocol_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
         self.protocol_fee_rate = new_protocol_fee_rate.as_u128();
@@ -220,16 +220,16 @@ impl GridBotContract {
         };
         self.pair_map.insert(&pair_key, &pair);
         if !self.global_balances_map.contains_key(&(base_token.clone())) {
-            self.global_balances_map.insert(&base_token, &U128C::from(0));
+            self.global_balances_map.insert(&base_token, &U256C::from(0));
         }
         if !self.global_balances_map.contains_key(&(quote_token.clone())) {
-            self.global_balances_map.insert(&quote_token, &U128C::from(0));
+            self.global_balances_map.insert(&quote_token, &U256C::from(0));
         }
     }
 
     // TODO Test
     #[payable]
-    pub fn set_oracle_price(&mut self, price: U128C, pair_id: String) {
+    pub fn set_oracle_price(&mut self, price: U256C, pair_id: String) {
         self.assert_owner();
         let price_info = OraclePrice {
             valid_timestamp: env::block_timestamp_ms() + 3600000,

@@ -2,7 +2,7 @@ use near_sdk::{AccountId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
-use crate::utils::{U128C};
+use crate::utils::{U256C};
 use near_sdk::BorshStorageKey;
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -33,25 +33,25 @@ pub struct GridBot {
     pub grid_buy_count: u16,
     /// real_grid_rate = grid_rate / 10000
     pub grid_rate: u16,
-    pub grid_offset: U128C,
-    pub first_base_amount: U128C,
-    pub first_quote_amount: U128C,
-    pub last_base_amount: U128C,
-    pub last_quote_amount: U128C,
+    pub grid_offset: U256C,
+    pub first_base_amount: U256C,
+    pub first_quote_amount: U256C,
+    pub last_base_amount: U256C,
+    pub last_quote_amount: U256C,
     pub fill_base_or_quote: bool,
     /// real_trigger_price = trigger_price / 10^18
-    pub trigger_price: U128C,
+    pub trigger_price: U256C,
     /// eg: trigger_price=100, current_price=50, then trigger_price_above_or_below = true
     /// eg: trigger_price=100, current_price=200, then trigger_price_above_or_below = false
     pub trigger_price_above_or_below: bool,
     /// real_take_profit_price = take_profit_price / 10^18
-    pub take_profit_price: U128C,
+    pub take_profit_price: U256C,
     /// real_stop_loss_price = stop_loss_price / 10^18
-    pub stop_loss_price: U128C,
-    pub valid_until_time: U128C,
-    pub total_quote_amount: U128C,
-    pub total_base_amount: U128C,
-    pub revenue: U128C,
+    pub stop_loss_price: U256C,
+    pub valid_until_time: U256C,
+    pub total_quote_amount: U256C,
+    pub total_base_amount: U256C,
+    pub revenue: U256C,
 }
 
 impl Clone for GridBot {
@@ -90,10 +90,10 @@ impl Clone for GridBot {
 pub struct Order {
     pub token_sell: AccountId,
     pub token_buy: AccountId,
-    pub amount_sell: U128C,
-    pub amount_buy: U128C,
+    pub amount_sell: U256C,
+    pub amount_buy: U256C,
     pub fill_buy_or_sell: bool,
-    pub filled: U128C,
+    pub filled: U256C,
 }
 impl Default for Order {
     fn default() -> Self {
@@ -146,7 +146,7 @@ impl Clone for OrderKeyInfo {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OraclePrice {
     pub valid_timestamp: u64,
-    pub price: U128C,
+    pub price: U256C,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]

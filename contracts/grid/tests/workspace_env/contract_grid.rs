@@ -3,7 +3,7 @@ use near_units::parse_near;
 use serde_json::json;
 use workspaces::{Account, Contract};
 use workspaces::result::ExecutionFinalResult;
-use grid::{GridBot, GridType, Order, OrderKeyInfo, OrderResult, U128C};
+use grid::{GridBot, GridType, Order, OrderKeyInfo, OrderResult, U256C};
 use crate::*;
 
 pub struct GridBotHelper(pub Contract);
@@ -42,7 +42,7 @@ impl GridBotHelper {
             .await
     }
 
-    pub async fn set_oracle_price(&self, caller: &Account, price: &U128C, pair_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn set_oracle_price(&self, caller: &Account, price: &U256C, pair_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start set_oracle_price");
         caller
             .call(self.0.id(), "set_oracle_price")
@@ -56,10 +56,10 @@ impl GridBotHelper {
             .await
     }
 
-    pub async fn create_bot(&self, caller: &Account, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U128C, first_base_amount: U128C, first_quote_amount: U128C,
-                            last_base_amount: U128C, last_quote_amount: U128C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
-                            trigger_price: U128C, take_profit_price: U128C, stop_loss_price: U128C, valid_until_time: U128C,
-                            entry_price: U128C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn create_bot(&self, caller: &Account, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U256C, first_base_amount: U256C, first_quote_amount: U256C,
+                            last_base_amount: U256C, last_quote_amount: U256C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
+                            trigger_price: U256C, take_profit_price: U256C, stop_loss_price: U256C, valid_until_time: U256C,
+                            entry_price: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start create_bot");
         caller
             .call(self.0.id(), "create_bot")
@@ -155,7 +155,7 @@ impl GridBotHelper {
     }
 
     // ####################################### Owner
-    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId, amount: U128C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId, amount: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start withdraw_protocol_fee");
         caller
             .call(self.0.id(), "withdraw_protocol_fee")
@@ -274,7 +274,7 @@ impl GridBotHelper {
             .json::<Option<Vec<GridBot>>>()
     }
 
-    pub async fn query_protocol_fee(&self, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+    pub async fn query_protocol_fee(&self, token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {
         log!("start query_protocol_fee");
         self.0
             .call("query_protocol_fee")
@@ -283,10 +283,10 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<U128C>>()
+            .json::<Option<U256C>>()
     }
 
-    pub async fn query_global_balance(&self, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+    pub async fn query_global_balance(&self, token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {
         log!("start query_global_balance");
         self.0
             .call("query_global_balance")
@@ -295,10 +295,10 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<U128C>>()
+            .json::<Option<U256C>>()
     }
 
-    pub async fn query_user_balance(&self, user: &AccountId, token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+    pub async fn query_user_balance(&self, user: &AccountId, token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {
         log!("start query_user_balance");
         self.0
             .call("query_user_balance")
@@ -308,10 +308,10 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<U128C>>()
+            .json::<Option<U256C>>()
     }
 
-    pub async fn query_user_locked_balance(&self, user: &AccountId,token: AccountId) -> Result<Option<U128C>, workspaces::error::Error> {
+    pub async fn query_user_locked_balance(&self, user: &AccountId,token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {
         log!("start query_user_locked_balance");
         self.0
             .call("query_user_locked_balance")
@@ -321,10 +321,10 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<U128C>>()
+            .json::<Option<U256C>>()
     }
 
-    pub async fn query_storage_fee(&self) -> Result<U128C, workspaces::error::Error> {
+    pub async fn query_storage_fee(&self) -> Result<U256C, workspaces::error::Error> {
         log!("start query_storage_fee");
         self.0
             .call("query_storage_fee")
@@ -332,6 +332,6 @@ impl GridBotHelper {
             // }))
             .view()
             .await?
-            .json::<U128C>()
+            .json::<U256C>()
     }
 }

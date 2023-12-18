@@ -26,9 +26,9 @@ impl FungibleTokenReceiver for GridBotContract {
         let amount: u128 = amount.into();
         log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone());
         // add amount to user
-        self.internal_increase_asset(&sender_id, &token_in, &(U128C::from(amount.clone())));
+        self.internal_increase_asset(&sender_id, &token_in, &(U256C::from(amount.clone())));
         // add amount to global
-        self.internal_increase_global_asset(&token_in, &(U128C::from(amount)));
+        self.internal_increase_global_asset(&token_in, &(U256C::from(amount)));
         // TODO return 0 means cost all
         return PromiseOrValue::Value(U128::from(0));
     }
@@ -116,11 +116,11 @@ impl ExtSelf for GridBotContract {
         if !promise_success.clone() {
             emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
             // TODO record to special account
-            // self.internal_increase_asset(&account_id, &token_id, &(U128C::from(amount.clone().0)));
+            // self.internal_increase_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset
-            self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
+            self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
         }
         promise_success
     }
@@ -135,11 +135,11 @@ impl ExtSelf for GridBotContract {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::withdraw_protocol_fee_failed(&account_id, amount.clone().0, &token_id);
-            self.internal_increase_protocol_fee(&token_id, &(U128C::from(amount.clone().0)));
+            self.internal_increase_protocol_fee(&token_id, &(U256C::from(amount.clone().0)));
         } else {
             emit::withdraw_protocol_fee_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset
-            self.internal_reduce_global_asset(&token_id, &(U128C::from(amount.clone().0)))
+            self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
         }
         promise_success
     }
@@ -166,7 +166,7 @@ impl ExtSelf for GridBotContract {
             let recorded_balance = self.internal_get_global_balance(&token_id);
             require!(balance.0 >= recorded_balance.as_u128(), INVALID_BALANCE);
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
-            self.internal_withdraw_unowned_asset(&to_user, &token_id, U128C::from(can_withdraw_amount));
+            self.internal_withdraw_unowned_asset(&to_user, &token_id, U256C::from(can_withdraw_amount));
         } else {
             log!("withdraw_unowned_asset error");
         }

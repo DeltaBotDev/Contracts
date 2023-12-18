@@ -13,7 +13,7 @@ impl GridBotContract {
         require!(bot.active.clone(), BOT_DISABLE);
         require!(self.pair_map.contains_key(&(bot.pair_id.clone())), INVALID_PAIR_ID);
         // check timestamp
-        require!(bot.valid_until_time >= U128C::from(env::block_timestamp_ms()), BOT_EXPIRED);
+        require!(bot.valid_until_time >= U256C::from(env::block_timestamp_ms()), BOT_EXPIRED);
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse {
             bot_orders.get(FORWARD_ORDERS_INDEX).unwrap()
@@ -43,11 +43,11 @@ impl GridBotContract {
         return orders;
     }
 
-    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U128C, U128C, U128C, Order) {
+    pub fn estimate_calculate(&self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order) -> (U256C, U256C, U256C, Order) {
         let (maker_order, _) = self.query_order(bot_id, forward_or_reverse, level);
         // matching check
         GridBotContract::internal_check_order_match(maker_order.clone(), taker_order.clone());
         // calculate
-        return GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone(), U128C::from(0), U128C::from(0));
+        return GridBotContract::internal_calculate_matching(maker_order.clone(), taker_order.clone(), U256C::from(0), U256C::from(0));
     }
 }

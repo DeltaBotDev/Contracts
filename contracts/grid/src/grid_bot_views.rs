@@ -17,22 +17,22 @@ impl GridBotContract {
         return grid_bots;
     }
 
-    pub fn query_protocol_fee(&self, token: AccountId) -> U128C {
+    pub fn query_protocol_fee(&self, token: AccountId) -> U256C {
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
         return self.internal_get_protocol_fee(&token);
     }
 
-    pub fn query_global_balance(&self, token: AccountId) -> U128C {
+    pub fn query_global_balance(&self, token: AccountId) -> U256C {
         require!(self.global_balances_map.contains_key(&token), INVALID_TOKEN);
         return self.internal_get_global_balance(&token);
     }
 
-    pub fn query_user_balance(&self, user: AccountId, token: AccountId) -> U128C {
+    pub fn query_user_balance(&self, user: AccountId, token: AccountId) -> U256C {
         require!(self.user_balances_map.contains_key(&user), INVALID_USER);
         return self.internal_get_user_balance(&user, &token);
     }
 
-    pub fn query_user_locked_balance(&self, user: AccountId, token: AccountId) -> U128C {
+    pub fn query_user_locked_balance(&self, user: AccountId, token: AccountId) -> U256C {
         require!(self.user_locked_balances_map.contains_key(&user), INVALID_USER);
         return self.internal_get_user_locked_balance(&user, &token);
     }
@@ -42,11 +42,11 @@ impl GridBotContract {
         return self.pair_map.get(&pair_id).unwrap().clone();
     }
 
-    pub fn query_protocol_fee_rate(&self) -> U128C {
-        return U128C::from(self.protocol_fee_rate.clone());
+    pub fn query_protocol_fee_rate(&self) -> U256C {
+        return U256C::from(self.protocol_fee_rate.clone());
     }
 
-    pub fn query_storage_fee(&self) -> U128C {
-        return U128C::from(self.storage_fee.clone());
+    pub fn query_storage_fee(&self) -> U256C {
+        return U256C::from(self.storage_fee.clone());
     }
 }

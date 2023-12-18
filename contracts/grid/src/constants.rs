@@ -1,5 +1,4 @@
 use near_sdk::{Balance, Gas};
-// use crate::U128C;
 
 /// Attach no deposit.
 pub const NO_DEPOSIT: Balance = 0;
