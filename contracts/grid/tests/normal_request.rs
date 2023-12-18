@@ -421,7 +421,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     let owner_eth_balance = eth_token_contract.ft_balance_of(&owner).await?;
     println!("before withdraw protocol fee:maker user_eth:{}", owner_eth_balance.0.to_string());
     require!(owner_eth_balance == U128::from(0 as u128));
-    check_success(gridbot_contract.withdraw_protocol_fee(&owner, usdc_token_contract.get_account_id(), (AccountId::from_str(owner.id()).expect("Invalid AccountId"))).await);
+    check_success(gridbot_contract.withdraw_protocol_fee(&owner, usdc_token_contract.get_account_id(), (AccountId::from_str(owner.id()).expect("Invalid AccountId")), U128C::from(100000)).await);
     let owner_usdc_balance = usdc_token_contract.ft_balance_of(&owner).await?;
     println!("after withdraw protocol fee:maker user_usdc:{}", owner_usdc_balance.0.to_string());
     require!(owner_usdc_balance == U128::from(100000 as u128));

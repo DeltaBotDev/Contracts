@@ -155,13 +155,14 @@ impl GridBotHelper {
     }
 
     // ####################################### Owner
-    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId, amount: U128C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start withdraw_protocol_fee");
         caller
             .call(self.0.id(), "withdraw_protocol_fee")
             .args_json(json!({
                 "token": token,
                 "to_user": to_user,
+                "amount": amount,
             }))
             .gas(300_000_000_000_000)
             .deposit(1)

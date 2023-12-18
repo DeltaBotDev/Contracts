@@ -151,11 +151,12 @@ impl GridBotContract {
     //################################################## Owner #####################################
 
     #[payable]
-    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId) {
+    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId, amount: U128C) {
         self.assert_owner();
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
         let protocol_fee = self.internal_get_protocol_fee(&token);
-        self.internal_withdraw_protocol_fee(&to_user, &token, protocol_fee);
+        require!(protocol_fee >= amount, INVALID_AMOUNT);
+        self.internal_withdraw_protocol_fee(&to_user, &token, amount);
     }
 
     #[payable]

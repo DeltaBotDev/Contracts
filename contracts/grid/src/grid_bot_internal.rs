@@ -5,7 +5,7 @@ use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
-use crate::entity::OrdersStorageKey;
+use crate::entity::StorageKey;
 
 impl GridBotContract {
 
@@ -170,9 +170,9 @@ impl GridBotContract {
     }
 
     pub fn create_default_orders(grid_count: u16) -> Vector<Vector<Order>> {
-        let mut outer_vector = Vector::new(OrdersStorageKey::OuterVector);
+        let mut outer_vector = Vector::new(StorageKey::OrdersMainKey);
         for i in 0..2 {
-            let mut inner_vector = Vector::new(OrdersStorageKey::InnerVector(i as u64));
+            let mut inner_vector = Vector::new(StorageKey::OrdersSubKey(i as u64));
             for _ in 0..grid_count {
                 inner_vector.push(&Order::default());
             }

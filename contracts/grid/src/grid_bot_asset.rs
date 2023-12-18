@@ -1,9 +1,8 @@
 use near_sdk::{AccountId, Balance};
 use near_sdk::collections::LookupMap;
-use crate::{GridBot, GridBotContract, U128C, UserBalanceLockedStorageKey};
+use crate::{GridBot, GridBotContract, StorageKey, U128C};
 use crate::entity::Pair;
 use crate::events::emit;
-use crate::UserBalanceAvailableStorageKey;
 
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
@@ -16,7 +15,7 @@ impl GridBotContract {
         // *balance -= *amount;
 
         let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(UserBalanceAvailableStorageKey::InnerMap(user.clone()));
+            let mut map = LookupMap::new(StorageKey::UserBalanceSubKey(user.clone()));
             map.insert(token, &U128C::from(0));
             map
         });
@@ -36,7 +35,7 @@ impl GridBotContract {
         // *balance += *amount;
 
         let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(UserBalanceAvailableStorageKey::InnerMap(user.clone()));
+            let mut map = LookupMap::new(StorageKey::UserBalanceSubKey(user.clone()));
             map.insert(token, &U128C::from(0));
             map
         });
@@ -80,7 +79,7 @@ impl GridBotContract {
         // *locked_balance += *amount;
 
         let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(UserBalanceLockedStorageKey::InnerMap(user.clone()));
+            let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
             map.insert(token, &U128C::from(0));
             map
         });
@@ -100,7 +99,7 @@ impl GridBotContract {
         // *locked_balance -= *amount;
 
         let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(UserBalanceLockedStorageKey::InnerMap(user.clone()));
+            let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
             map.insert(token, &U128C::from(0));
             map
         });

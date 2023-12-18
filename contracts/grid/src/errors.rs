@@ -31,6 +31,8 @@ pub const PAIR_EXIST: &str = "PAIR_EXIST";
 pub const BOT_EXPIRED: &str = "BOT_EXPIRED";
 pub const INVALID_PROTOCOL_FEE: &str = "INVALID_PROTOCOL_FEE";
 pub const INVALID_FORWARD_OR_REVERSE: &str = "INVALID_FORWARD_OR_REVERSE";
+pub const INVALID_AMOUNT: &str = "INVALID_AMOUNT";
+
 
 
 

@@ -69,8 +69,8 @@ impl GridBotContract {
             pair_map: LookupMap::new(b"pairs".to_vec()),
             protocol_fee_map: LookupMap::new(b"protocol".to_vec()),
             global_balances_map: LookupMap::new(b"global".to_vec()),
-            user_balances_map: LookupMap::new(UserBalanceAvailableStorageKey::ComplexMap),
-            user_locked_balances_map: LookupMap::new(UserBalanceLockedStorageKey::ComplexMap),
+            user_balances_map: LookupMap::new(StorageKey::UserBalanceMainKey),
+            user_locked_balances_map: LookupMap::new(StorageKey::UserLockedBalanceMainKey),
         }
     }
 }

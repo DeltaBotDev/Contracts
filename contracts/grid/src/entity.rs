@@ -166,19 +166,11 @@ impl Clone for Pair {
 }
 
 #[derive(BorshStorageKey, BorshSerialize)]
-pub enum UserBalanceAvailableStorageKey {
-    ComplexMap,
-    InnerMap(AccountId),
-}
-
-#[derive(BorshStorageKey, BorshSerialize)]
-pub enum UserBalanceLockedStorageKey {
-    ComplexMap,
-    InnerMap(AccountId),
-}
-
-#[derive(BorshStorageKey, BorshSerialize, BorshDeserialize)]
-pub enum OrdersStorageKey {
-    OuterVector,
-    InnerVector(u64),
+pub enum StorageKey {
+    UserBalanceMainKey,
+    UserBalanceSubKey(AccountId),
+    UserLockedBalanceMainKey,
+    UserLockedBalanceSubKey(AccountId),
+    OrdersMainKey,
+    OrdersSubKey(u64),
 }
