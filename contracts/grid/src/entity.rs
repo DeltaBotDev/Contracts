@@ -173,4 +173,6 @@ pub enum StorageKey {
     UserLockedBalanceSubKey(AccountId),
     OrdersMainKey,
     OrdersSubKey(u64),
+    WithdrawFailedMainKey,
+    WithdrawFailedSubKey(AccountId),
 }

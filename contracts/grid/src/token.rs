@@ -46,7 +46,6 @@ impl GridBotContract {
             ).then(
             Self::ext(env::current_account_id())
                 .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
-                // TODO can use sign
                 .after_ft_transfer(
                     account_id.clone(),
                     token_id.clone(),
@@ -115,8 +114,7 @@ impl ExtSelf for GridBotContract {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
-            // TODO record to special account
-            // self.internal_increase_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
+            self.internal_increase_withdraw_failed_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset

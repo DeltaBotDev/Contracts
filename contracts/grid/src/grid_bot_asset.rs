@@ -7,13 +7,6 @@ use crate::events::emit;
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
     pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        if *amount == U256C::from(0) {
-            return;
-        }
-        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        // let balance = user_balances.entry(token.clone()).or_insert(U256C::from(0));
-        // *balance -= *amount;
-
         let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
             let mut map = LookupMap::new(StorageKey::UserBalanceSubKey(user.clone()));
             map.insert(token, &U256C::from(0));
@@ -27,13 +20,6 @@ impl GridBotContract {
     }
 
     pub fn internal_increase_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        if *amount == U256C::from(0) {
-            return;
-        }
-        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        // let balance = user_balances.entry(token.clone()).or_insert(U256C::from(0));
-        // *balance += *amount;
-
         let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
             let mut map = LookupMap::new(StorageKey::UserBalanceSubKey(user.clone()));
             map.insert(token, &U256C::from(0));
@@ -44,6 +30,32 @@ impl GridBotContract {
         user_balances.insert(token, &(balance + amount));
 
         self.user_balances_map.insert(user, &user_balances);
+    }
+
+    pub fn internal_reduce_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
+        let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
+            map.insert(token, &U256C::from(0));
+            map
+        });
+
+        let balance = user_balances.get(token).unwrap_or(U256C::from(0));
+        user_balances.insert(token, &(balance - amount));
+
+        self.user_withdraw_failed_map.insert(user, &user_balances);
+    }
+
+    pub fn internal_increase_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
+        let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
+            let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
+            map.insert(token, &U256C::from(0));
+            map
+        });
+
+        let balance = user_balances.get(token).unwrap_or(U256C::from(0));
+        user_balances.insert(token, &(balance + amount));
+
+        self.user_withdraw_failed_map.insert(user, &user_balances);
     }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U256C) {
