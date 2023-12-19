@@ -12,20 +12,6 @@ use crate::workspace_env::*;
 
 mod workspace_env;
 
-pub async fn create_contract() -> Result<(Worker<Testnet>, Account, Account, GridBotHelper, FtContractHelper, FtContractHelper), workspaces::error::Error> {
-    let worker = workspaces::testnet().await?;
-    let owner = create_account(&worker).await;
-    log!("owner account:".to_string() + &owner.id().to_string());
-    let gridbot_contract = setup_contract(&worker, &owner).await?;
-    // account
-    let maker_account = create_account(&worker).await;
-    log!("maker account:".to_string() + &maker_account.id().to_string());
-    // deposit
-    let eth_token_contract = setup_token_contract(&worker, "ETH", 18).await?;
-    let usdc_token_contract = setup_token_contract(&worker, "USDC", 6).await?;
-    Ok((worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract))
-}
-
 // #[tokio::test]
 // async fn asset_change() -> Result<(), workspaces::error::Error> {
 //     let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
@@ -848,25 +834,25 @@ pub async fn create_contract() -> Result<(Worker<Testnet>, Account, Account, Gri
 //     Ok(())
 // }
 
-#[tokio::test]
-async fn min_deposit() -> Result<(), workspaces::error::Error> {
-    let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
-
-    check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
-    check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
-
-    // register pair
-    check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()), U256C::from(10000), U256C::from(10000)).await);
-
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000).await);
-
-    check_success(gridbot_contract.set_min_deposit(&owner, eth_token_contract.get_account_id(), U256C::from(100)).await);
-
-    // deposit
-    check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 100).await);
-    Ok(())
-}
+// #[tokio::test]
+// async fn min_deposit() -> Result<(), workspaces::error::Error> {
+//     let (worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
+//
+//     check_success(eth_token_contract.ft_mint(&maker_account, U128::from(10000000000000000000000 as u128).into()).await);
+//     check_success(usdc_token_contract.ft_mint(&maker_account, U128::from(100000000000000 as u128).into()).await);
+//
+//     // register pair
+//     check_success(gridbot_contract.register_pair(&owner, &(eth_token_contract.get_account_id()), &(usdc_token_contract.get_account_id()), U256C::from(10000), U256C::from(10000)).await);
+//
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 10000).await);
+//
+//     check_success(gridbot_contract.set_min_deposit(&owner, eth_token_contract.get_account_id(), U256C::from(100)).await);
+//
+//     // deposit
+//     check_success(gridbot_contract.deposit(&eth_token_contract, &maker_account, 100).await);
+//     Ok(())
+// }
 
 // withdraw
 

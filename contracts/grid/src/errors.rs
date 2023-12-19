@@ -36,6 +36,8 @@ pub const INVALID_AMOUNT: &str = "INVALID_AMOUNT";
 pub const LESS_STORAGE_FEE: &str = "LESS_STORAGE_FEE";
 pub const ALREADY_NEW: &str = "ALREADY_NEW";
 pub const HAD_SHUTDOWN: &str = "HAD_SHUTDOWN";
+pub const CAN_NOT_READ_STATE: &str = "CAN_NOT_READ_STATE";
+
 
 
 

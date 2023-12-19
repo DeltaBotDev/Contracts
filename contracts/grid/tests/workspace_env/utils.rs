@@ -5,6 +5,19 @@ use workspaces::result::ExecutionFinalResult;
 use crate::workspace_env::{deploy_grid_bot, deploy_token, FtContractHelper, GridBotHelper};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub async fn create_contract() -> Result<(Worker<Testnet>, Account, Account, GridBotHelper, FtContractHelper, FtContractHelper), workspaces::error::Error> {
+    let worker = workspaces::testnet().await?;
+    let owner = create_account(&worker).await;
+    log!("owner account:".to_string() + &owner.id().to_string());
+    let gridbot_contract = setup_contract(&worker, &owner).await?;
+    // account
+    let maker_account = create_account(&worker).await;
+    log!("maker account:".to_string() + &maker_account.id().to_string());
+    // deposit
+    let eth_token_contract = setup_token_contract(&worker, "ETH", 18).await?;
+    let usdc_token_contract = setup_token_contract(&worker, "USDC", 6).await?;
+    Ok((worker, owner, maker_account, gridbot_contract, eth_token_contract, usdc_token_contract))
+}
 
 pub async fn create_account(
     worker: &Worker<Testnet>
