@@ -73,9 +73,6 @@ impl GridBotContract {
         require!(self.internal_check_bot_close_permission(&user, &bot), NO_PERMISSION);
 
         // sign closed
-        // let mut bot = self.bot_map.get(&bot_id).unwrap();
-        // // TODO got bot_mut once
-        // self.bot_map.get_mut(&bot_id).unwrap().closed = true;
         bot.closed = true;
 
         // harvest revenue, must fist execute, will split revenue from bot's asset
@@ -194,14 +191,14 @@ impl GridBotContract {
     #[payable]
     pub fn pause(&mut self) {
         self.assert_owner();
-        // TODO shutdown
+        require!(self.status != GridStatus::Shutdown, HAD_SHUTDOWN);
         self.status = GridStatus::Paused;
     }
 
     #[payable]
     pub fn start(&mut self) {
         self.assert_owner();
-        // TODO shutdown
+        require!(self.status != GridStatus::Shutdown, HAD_SHUTDOWN);
         self.status = GridStatus::Running;
     }
 
