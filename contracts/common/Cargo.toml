@@ -11,7 +11,3 @@ near-sys = "0.2.0"
 
 [lib]
 crate-type = ["cdylib","rlib"]
-
-[workspace]
-members = [
-]

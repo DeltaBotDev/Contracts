@@ -181,6 +181,14 @@ impl GridBotContract {
         return outer_vector;
     }
 
+    pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U256C) {
+        if self.global_balances_map.contains_key(&token) {
+            return;
+        }
+        self.global_balances_map.insert(&token, &U256C::from(0));
+        self.deposit_limit_map.insert(&token, &min_deposit);
+    }
+
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {
         let scale = BigDecimal::from(1 as u64);
         let a = scale;   // 1.0 * scale

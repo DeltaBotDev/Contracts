@@ -210,7 +210,7 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId) {
+    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U256C, quote_min_deposit: U256C) {
         self.assert_owner();
         require!(base_token != quote_token, INVALID_TOKEN);
         let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
@@ -220,12 +220,14 @@ impl GridBotContract {
             quote_token: quote_token.clone(),
         };
         self.pair_map.insert(&pair_key, &pair);
-        if !self.global_balances_map.contains_key(&(base_token.clone())) {
-            self.global_balances_map.insert(&base_token, &U256C::from(0));
-        }
-        if !self.global_balances_map.contains_key(&(quote_token.clone())) {
-            self.global_balances_map.insert(&quote_token, &U256C::from(0));
-        }
+        self.internal_init_token(base_token, base_min_deposit);
+        self.internal_init_token(quote_token, quote_min_deposit);
+    }
+
+    #[payable]
+    pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U256C) {
+        self.assert_owner();
+        self.deposit_limit_map.insert(&token, &min_deposit);
     }
 
     // TODO Test

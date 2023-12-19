@@ -3,3 +3,5 @@ contracts/grid/target/**
 contracts/grid/res/**
 contracts/grid/src/main.rs
 contracts/common/target/**
+res/**
+target/**

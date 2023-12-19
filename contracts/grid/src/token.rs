@@ -19,16 +19,16 @@ impl FungibleTokenReceiver for GridBotContract {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        // TODO set min deposit
         require!(msg.is_empty(), INVALID_TRANSFER_DATA);
         let token_in = env::predecessor_account_id();
-        require!(self.global_balances_map.contains_key(&(token_in.clone())), INVALID_TOKEN);
-        let amount: u128 = amount.into();
-        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone());
+        require!(self.global_balances_map.contains_key(&token_in), INVALID_TOKEN);
+        // require min deposit
+        require!(amount.clone().0 >= self.deposit_limit_map.get(&token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
+        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
         // add amount to user
-        self.internal_increase_asset(&sender_id, &token_in, &(U256C::from(amount.clone())));
+        self.internal_increase_asset(&sender_id, &token_in, &(U256C::from(amount.clone().0)));
         // add amount to global
-        self.internal_increase_global_asset(&token_in, &(U256C::from(amount)));
+        self.internal_increase_global_asset(&token_in, &(U256C::from(amount.0)));
         // TODO return 0 means cost all
         return PromiseOrValue::Value(U128::from(0));
     }

@@ -50,6 +50,7 @@ pub struct GridBotContract {
     pub protocol_fee_map: LookupMap<AccountId, U256C>,
     pub storage_fee: u128,
     pub global_balances_map: LookupMap<AccountId, U256C>,
+    pub deposit_limit_map: LookupMap<AccountId, U256C>,
     pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
 }
@@ -58,6 +59,7 @@ pub struct GridBotContract {
 impl GridBotContract {
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
+        assert!(!env::state_exists());
         GridBotContract {
             owner_id: owner_id.clone(),
             status: GridStatus::Running,
@@ -71,6 +73,7 @@ impl GridBotContract {
             protocol_fee_map: LookupMap::new(b"protocol".to_vec()),
             storage_fee: 0,
             global_balances_map: LookupMap::new(b"global".to_vec()),
+            deposit_limit_map: LookupMap::new(b"deposit_limit".to_vec()),
             user_balances_map: LookupMap::new(StorageKey::UserBalanceMainKey),
             user_locked_balances_map: LookupMap::new(StorageKey::UserLockedBalanceMainKey),
         }

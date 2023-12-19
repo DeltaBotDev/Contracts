@@ -28,13 +28,15 @@ impl GridBotHelper {
         return token_contract.ft_transfer_call(caller, &(AccountId::from_str(self.0.id()).expect("Invalid AccountId")), amount, "".to_string()).await;
     }
 
-    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId, base_min_deposit: U256C, quote_min_deposit: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start register_pair");
         caller
             .call(self.0.id(), "register_pair")
             .args_json(json!({
                 "base_token": *base_token,
                 "quote_token": *quote_token,
+                "base_min_deposit": base_min_deposit,
+                "quote_min_deposit": quote_min_deposit,
             }))
             .gas(300_000_000_000_000)
             .deposit(1)
@@ -213,6 +215,20 @@ impl GridBotHelper {
             // .args_json(json!({
             //     "token": token,
             // }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
+            .transact()
+            .await
+    }
+
+    pub async fn set_min_deposit(&self, caller: &Account, token: AccountId, min_deposit: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start set_min_deposit");
+        caller
+            .call(self.0.id(), "set_min_deposit")
+            .args_json(json!({
+                "token": token,
+                "min_deposit": min_deposit,
+            }))
             .gas(300_000_000_000_000)
             .deposit(1)
             .transact()
