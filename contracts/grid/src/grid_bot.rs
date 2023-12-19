@@ -98,6 +98,8 @@ impl GridBotContract {
         // assert_one_yocto();
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
+        require!(take_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
+        require!(take_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
         let user = env::predecessor_account_id();
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
         let mut took_amount_sell = U256C::from(0);

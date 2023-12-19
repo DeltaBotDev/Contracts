@@ -87,9 +87,6 @@ impl GridBotContract {
         require!(maker_order.token_buy == taker_order.token_sell, INVALID_ORDER_TOKEN);
         require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
         require!(taker_order.token_sell != taker_order.token_buy, INVALID_ORDER_TOKEN);
-        // TODO can move to outside
-        require!(taker_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
-        require!(taker_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
 
         require!(BigDecimal::from(taker_order.amount_sell.as_u128()).div(BigDecimal::from(taker_order.amount_buy.as_u128())) >= BigDecimal::from(maker_order.amount_buy.as_u128()).div(BigDecimal::from(maker_order.amount_sell.as_u128())), INVALID_PRICE);
     }
