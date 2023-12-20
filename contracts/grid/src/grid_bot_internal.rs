@@ -9,6 +9,32 @@ use crate::entity::StorageKey;
 
 impl GridBotContract {
 
+    pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>, user_deposit_amount: U256C) -> u128 {
+        require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
+        require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
+        require!(user_deposit_amount >= take_order.amount_sell, INVALID_ORDER_AMOUNT);
+        require!(take_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
+        require!(take_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
+        require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
+        let mut took_amount_sell = U256C::from(0);
+        let mut took_amount_buy = U256C::from(0);
+        // loop take order
+        for maker_order in maker_orders.iter() {
+            let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            took_amount_sell += taker_sell;
+            took_amount_buy += taker_buy;
+        }
+        require!(take_order.amount_sell >= took_amount_sell, INVALID_ORDER_MATCHING);
+        // transfer taker's asset
+        self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
+        self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
+
+        // withdraw for taker
+        self.internal_withdraw(&user, &(take_order.token_buy), took_amount_buy);
+        // left take_order.amount_sell - took_amount_sell
+        return (user_deposit_amount - took_amount_sell).as_u128();
+    }
+
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
         let next_id = self.next_bot_id.clone();
 
@@ -181,12 +207,14 @@ impl GridBotContract {
         return outer_vector;
     }
 
-    pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U256C) {
+    pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U256C) -> U256C {
         if self.global_balances_map.contains_key(&token) {
-            return;
+            return U256C::from(0);
         }
         self.global_balances_map.insert(&token, &U256C::from(0));
         self.deposit_limit_map.insert(&token, &min_deposit);
+        self.internal_storage_deposit(&env::current_account_id(), &token, DEFAULT_TOKEN_STORAGE_FEE);
+        return U256C::from(DEFAULT_TOKEN_STORAGE_FEE);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

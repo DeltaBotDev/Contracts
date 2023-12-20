@@ -1,8 +1,10 @@
-use near_sdk::{AccountId, Balance};
+use near_sdk::{AccountId, Balance, log, require};
 use near_sdk::collections::LookupMap;
-use crate::{GridBot, GridBotContract, StorageKey, U256C};
+use near_sdk::json_types::U128;
+use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};
 use crate::entity::Pair;
 use crate::events::emit;
+use crate::errors::*;
 
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
@@ -202,6 +204,33 @@ impl GridBotContract {
         // self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = U256C::from(0);
         bot.revenue = U256C::from(0);
         return (revenue_token, U256C::from(revenue));
+    }
+
+    pub fn internal_deposit(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128) {
+        require!(self.global_balances_map.contains_key(token_in), INVALID_TOKEN);
+        // require min deposit
+        require!(amount.clone().0 >= self.deposit_limit_map.get(token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
+        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
+        // add amount to user
+        self.internal_increase_asset(sender_id, token_in, &(U256C::from(amount.clone().0)));
+        // add amount to global
+        self.internal_increase_global_asset(token_in, &(U256C::from(amount.0)));
+    }
+
+    pub fn internal_parse_take_request(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128, msg: String) -> U128 {
+        let take_request = serde_json::from_str::<TakeRequest>(&msg).expect(INVALID_TAKE_PARAM);
+        // deposit first
+        self.internal_deposit(sender_id, token_in, amount);
+        // take
+        let left = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders, U256C::from(amount.0));
+        // reduce left
+        if left.clone() > 0 {
+            // add amount to user
+            self.internal_reduce_asset(sender_id, token_in, &(U256C::from(left.clone())));
+            // add amount to global
+            self.internal_reduce_global_asset(token_in, &(U256C::from(left.clone())));
+        }
+        return U128::from(left);
     }
 
     //################################## Withdraw ##################################################

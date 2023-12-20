@@ -27,3 +27,4 @@ pub const REVERSE_ORDERS_INDEX: u64 = 1;
 /// Forward and Reverse
 pub const ORDER_POSITION_SIZE: u64 = 2;
 
+pub const DEFAULT_TOKEN_STORAGE_FEE: u128 = 1_00_000_000_000_000_000_000_000; // 0.1Near

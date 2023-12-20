@@ -176,3 +176,10 @@ pub enum StorageKey {
     WithdrawFailedMainKey,
     WithdrawFailedSubKey(AccountId),
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TakeRequest {
+    pub take_order: Order,
+    pub maker_orders: Vec<OrderKeyInfo>
+}

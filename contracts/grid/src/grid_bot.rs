@@ -1,7 +1,7 @@
 use crate::*;
 use near_sdk::{assert_one_yocto, Gas, near_bindgen, Promise, require};
 use serde_json::json;
-use crate::entity::{GridType, OrderKeyInfo};
+use crate::entity::{GridType};
 
 #[near_bindgen]
 impl GridBotContract {
@@ -87,33 +87,6 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
 
         self.bot_map.insert(&bot_id, &bot);
-    }
-
-    #[payable]
-    // TODO take can transfer then take orders
-    pub fn take_orders(&mut self, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) {
-        // assert_one_yocto();
-        require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
-        require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
-        require!(take_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
-        require!(take_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
-        let user = env::predecessor_account_id();
-        require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
-        let mut took_amount_sell = U256C::from(0);
-        let mut took_amount_buy = U256C::from(0);
-        // loop take order
-        for maker_order in maker_orders.iter() {
-            let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
-            took_amount_sell += taker_sell;
-            took_amount_buy += taker_buy;
-        }
-        // transfer taker's asset
-        self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
-        self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
-
-        // withdraw for taker
-        self.internal_withdraw(&user, &(take_order.token_buy), took_amount_buy);
-        // TODO need to withdraw the left asset, with return
     }
 
     pub fn claim(&mut self, bot_id: String) {
@@ -210,7 +183,8 @@ impl GridBotContract {
 
     #[payable]
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U256C, quote_min_deposit: U256C) {
-        self.assert_owner();
+        require!(env::attached_deposit() == DEFAULT_TOKEN_STORAGE_FEE * 2, LESS_TOKEN_STORAGE_FEE);
+        require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
         require!(base_token != quote_token, INVALID_TOKEN);
         let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
         require!(!self.pair_map.contains_key(&pair_key), PAIR_EXIST);
@@ -227,6 +201,13 @@ impl GridBotContract {
     pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U256C) {
         self.assert_owner();
         self.deposit_limit_map.insert(&token, &min_deposit);
+    }
+
+    #[payable]
+    pub fn storage_deposit(&mut self, token: AccountId, storage_fee: U256C) {
+        require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
+        require!(env::attached_deposit() == storage_fee.as_u128(), LESS_TOKEN_STORAGE_FEE);
+        self.internal_storage_deposit(&env::current_account_id(), &token, storage_fee.as_u128());
     }
 
     // TODO Test

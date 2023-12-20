@@ -60,7 +60,7 @@ impl FtContractHelper {
         sender
             .call(self.0.id(), "ft_transfer_call")
             .args_json(json!({
-                "recipient": receiver_id,
+                "receiver_id": receiver_id,
                 "amount": U128::from(amount),
                 "msg": msg.clone(),
             }))
@@ -75,7 +75,7 @@ impl FtContractHelper {
         user: &Account,
     ) -> Result<U128, workspaces::error::Error> {
         self.0
-            .call("get_balance")
+            .call("ft_balance_of")
             .args_json(json!({
                 "account_id": user.id()
             }))

@@ -123,4 +123,26 @@ pub mod emit {
             },
         );
     }
+
+    pub fn storage_deposit_succeeded(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "storage_deposit_succeeded",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn storage_deposit_failed(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "storage_deposit_failed",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
 }

@@ -1,97 +1,108 @@
-
+use near_contract_standards::fungible_token::metadata::{
+    FungibleTokenMetadata, FungibleTokenMetadataProvider,
+};
+use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{ext_contract, near_bindgen, AccountId, PanicOnDefault, Promise, Balance, Gas, PromiseResult, log};
-use near_sdk::collections::LookupMap;
-use near_sdk::env;
 use near_sdk::json_types::U128;
-
-const GAS_FOR_FT_ON_TRANSFER: Gas = Gas(Gas::ONE_TERA.0 * 10);
-const NO_DEPOSIT: Balance = 0;
+use near_sdk::{near_bindgen, ext_contract, AccountId, PanicOnDefault, PromiseOrValue, Promise};
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
-pub struct FtContract {
-    balances: LookupMap<AccountId, u128>,
-    total_supply: u128,
+#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
+pub struct FTContract {
+    token: FungibleToken,
     name: String,
     symbol: String,
+    icon: Option<String>,
     decimals: u8,
+}
+
+#[near_bindgen]
+impl FTContract {
+    #[init]
+    pub fn new(name: String, symbol: String, decimals: u8) -> Self {
+        Self {
+            token: FungibleToken::new(b"t".to_vec()),
+            name,
+            symbol,
+            icon: None,
+            decimals,
+        }
+    }
+
+    pub fn mint(&mut self, account_id: AccountId, amount: U128) {
+        if self.token.storage_balance_of(account_id.clone()).is_none() {
+            self.token.internal_register_account(&account_id);
+        }
+        self.token.internal_deposit(&account_id, amount.into());
+    }
+
+
+    pub fn burn(&mut self, account_id: AccountId, amount: U128) {
+        self.token.internal_withdraw(&account_id, amount.into());
+    }
+
+    #[private]
+    pub fn set_token_name(&mut self, name: String, symbol: String) {
+        self.name = name;
+        self.symbol = symbol;
+    }
+
+    #[private]
+    pub fn set_icon(&mut self, icon: String) {
+        self.icon = Some(icon);
+    }
+
+    #[private]
+    pub fn set_decimals(&mut self, dec: u8) {
+        self.decimals = dec;
+    }
+}
+
+near_contract_standards::impl_fungible_token_core!(FTContract, token);
+near_contract_standards::impl_fungible_token_storage!(FTContract, token);
+
+#[near_bindgen]
+impl FungibleTokenMetadataProvider for FTContract {
+    fn ft_metadata(&self) -> FungibleTokenMetadata {
+        unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::{env, testing_env};
+
+    use super::*;
+
+    #[test]
+    fn test_basics() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.build());
+        let mut contract = FTContract::new(String::from("TBD"), String::from("TBD"), 24);
+        testing_env!(context
+            .attached_deposit(125 * env::storage_byte_cost())
+            .build());
+        contract.mint(accounts(0), 1_000_000.into());
+        assert_eq!(contract.ft_balance_of(accounts(0)), 1_000_000.into());
+
+        testing_env!(context
+            .attached_deposit(125 * env::storage_byte_cost())
+            .build());
+        contract.storage_deposit(Some(accounts(1)), None);
+        testing_env!(context
+            .attached_deposit(1)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.ft_transfer(accounts(1), 1_000.into(), None);
+        assert_eq!(contract.ft_balance_of(accounts(1)), 1_000.into());
+
+        contract.burn(accounts(1), 500.into());
+        assert_eq!(contract.ft_balance_of(accounts(1)), 500.into());
+    }
 }
 
 #[ext_contract(ext_ft_receiver)]
 pub trait FTReceiver {
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> Promise;
 }
-
-#[near_bindgen]
-impl FtContract {
-    #[init]
-    pub fn new(name: String, symbol: String, decimals: u8) -> Self {
-        Self {
-            balances: LookupMap::new(b"b".to_vec()),
-            total_supply: 0,
-            name,
-            symbol,
-            decimals,
-        }
-    }
-
-    pub fn mint(&mut self, account_id: AccountId, amount: U128) {
-        let balance = self.balances.get(&account_id).unwrap_or(0);
-        self.balances.insert(&account_id, &(balance + amount.0));
-        self.total_supply += amount.0;
-    }
-
-    #[payable]
-    pub fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
-        let sender_id = env::predecessor_account_id();
-        let sender_balance = self.balances.get(&sender_id).expect("Balance not found");
-        assert!(amount.0.clone() <= sender_balance, "Not enough balance");
-
-        let recipient_balance = self.balances.get(&receiver_id).unwrap_or(0);
-        self.balances.insert(&sender_id, &(sender_balance - amount.0.clone()));
-        self.balances.insert(&receiver_id, &(recipient_balance + amount.0.clone()));
-    }
-
-    #[payable]
-    pub fn ft_transfer_call(&mut self, recipient: AccountId, amount: U128, msg: String) -> Promise {
-        // log!("sender_id".to_string() + &env::predecessor_account_id().to_string());
-        assert!(self.balances.get(&env::predecessor_account_id()).unwrap_or(0) >= amount.0, "Not enough balance");
-
-        let sender_id = env::predecessor_account_id();
-        let sender_balance = self.balances.get(&sender_id).expect("Balance not found");
-        let recipient_balance = self.balances.get(&recipient).unwrap_or(0);
-        self.balances.insert(&sender_id, &(sender_balance - amount.0));
-        self.balances.insert(&recipient, &(recipient_balance + amount.0));
-
-        // Self::ext(env::current_account_id())
-        //     .with_static_gas(GAS_FOR_FT_ON_TRANSFER)
-        //     .ft_on_transfer(sender_id,
-        //                     amount,
-        //                     msg)
-
-        // ext_ft_receiver::ft_on_transfer(
-        //     sender_id,
-        //     amount,
-        //     msg
-        // ).deposit(NO_DEPOSIT)
-        //     .gas(GAS_FOR_FT_ON_TRANSFER)
-
-        ext_ft_receiver::ext(recipient.clone())
-            .with_attached_deposit(NO_DEPOSIT)
-            .with_static_gas(GAS_FOR_FT_ON_TRANSFER)
-            .ft_on_transfer(
-                sender_id.clone(),
-                amount.clone(),
-                msg,
-            )
-    }
-    pub fn get_balance(&self, account_id: AccountId) -> U128 {
-        U128::from(self.balances.get(&account_id).unwrap_or(0))
-    }
-
-    pub fn get_total_supply(&self) -> U128 {
-        U128::from(self.total_supply)
-    }
-}
-

@@ -39,7 +39,7 @@ impl GridBotHelper {
                 "quote_min_deposit": quote_min_deposit,
             }))
             .gas(300_000_000_000_000)
-            .deposit(1)
+            .deposit(2_00_000_000_000_000_000_000_000)
             .transact()
             .await
     }
@@ -90,19 +90,19 @@ impl GridBotHelper {
             .await
     }
 
-    pub async fn take_orders(&self, caller: &Account, order: &Order, maker_orders: Vec<OrderKeyInfo>) -> Result<ExecutionFinalResult, workspaces::error::Error> {
-        log!("start take_orders");
-        caller
-            .call(self.0.id(), "take_orders")
-            .args_json(json!({
-                "take_order": order,
-                "maker_orders": maker_orders,
-            }))
-            .gas(300_000_000_000_000)
-            .deposit(1)
-            .transact()
-            .await
-    }
+    // pub async fn take_orders(&self, caller: &Account, order: &Order, maker_orders: Vec<OrderKeyInfo>) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    //     log!("start take_orders");
+    //     caller
+    //         .call(self.0.id(), "take_orders")
+    //         .args_json(json!({
+    //             "take_order": order,
+    //             "maker_orders": maker_orders,
+    //         }))
+    //         .gas(300_000_000_000_000)
+    //         .deposit(1)
+    //         .transact()
+    //         .await
+    // }
 
     pub async fn claim(&self, caller: &Account, bot_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start claim");
@@ -238,6 +238,11 @@ impl GridBotHelper {
 }
 
 impl GridBotHelper {
+
+    pub fn get_account_id(&self) -> AccountId {
+        return AccountId::from_str(self.0.id()).expect("Invalid AccountId");
+    }
+
     pub async fn query_order(&self, bot_id: String, forward_or_reverse: bool, level: usize) -> Result<Option<OrderResult>, workspaces::error::Error> {
         log!("start query_order");
         self.0

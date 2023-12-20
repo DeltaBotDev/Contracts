@@ -1,4 +1,5 @@
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
+use near_contract_standards::storage_management::StorageBalance;
 use near_sdk::{AccountId, Balance, env, is_promise_success, log, Promise, PromiseError, PromiseOrValue, require};
 use crate::*;
 use near_sdk::json_types::U128;
@@ -8,6 +9,7 @@ use crate::events::emit;
 #[ext_contract(ext_fungible_token)]
 pub trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+    fn storage_deposit(&mut self, account_id: Option<AccountId>, registration_only: Option<bool>) -> StorageBalance;
 }
 
 #[near_bindgen]
@@ -19,22 +21,36 @@ impl FungibleTokenReceiver for GridBotContract {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        require!(msg.is_empty(), INVALID_TRANSFER_DATA);
         let token_in = env::predecessor_account_id();
-        require!(self.global_balances_map.contains_key(&token_in), INVALID_TOKEN);
-        // require min deposit
-        require!(amount.clone().0 >= self.deposit_limit_map.get(&token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
-        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
-        // add amount to user
-        self.internal_increase_asset(&sender_id, &token_in, &(U256C::from(amount.clone().0)));
-        // add amount to global
-        self.internal_increase_global_asset(&token_in, &(U256C::from(amount.0)));
-        // TODO return 0 means cost all
-        return PromiseOrValue::Value(U128::from(0));
+        if msg.is_empty() {
+            self.internal_deposit(&sender_id, &token_in, amount);
+            return PromiseOrValue::Value(U128::from(0));
+        } else {
+            let left = self.internal_parse_take_request(&sender_id, &token_in, amount, msg);
+            return PromiseOrValue::Value(left);
+        }
     }
 }
 
 impl GridBotContract {
+    pub fn internal_storage_deposit(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
+        ext_fungible_token::ext(token_id.clone())
+            .with_attached_deposit(amount)
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .storage_deposit(
+                Some(account_id.clone()),
+                Some(false),
+            ).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_storage_deposit(
+                    account_id.clone(),
+                    token_id.clone(),
+                    amount.into(),
+                )
+        )
+    }
+
     pub fn internal_ft_transfer(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
         ext_fungible_token::ext(token_id.clone())
             .with_attached_deposit(ONE_YOCTO)
@@ -93,6 +109,8 @@ impl GridBotContract {
 
 #[ext_contract(ext_self)]
 trait ExtSelf {
+    fn after_storage_deposit(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+                             -> bool;
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
     fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
@@ -104,6 +122,23 @@ trait ExtSelf {
 
 #[near_bindgen]
 impl ExtSelf for GridBotContract {
+
+    #[private]
+    fn after_storage_deposit(
+        &mut self,
+        account_id: AccountId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        let promise_success = is_promise_success();
+        if !promise_success.clone() {
+            emit::storage_deposit_failed(&account_id, amount.clone().0, &token_id);
+        } else {
+            emit::storage_deposit_succeeded(&account_id, amount.clone().0, &token_id);
+        }
+        promise_success
+    }
+
     #[private]
     fn after_ft_transfer(
         &mut self,
@@ -166,7 +201,7 @@ impl ExtSelf for GridBotContract {
             let can_withdraw_amount = balance.0 - recorded_balance.as_u128();
             self.internal_withdraw_unowned_asset(&to_user, &token_id, U256C::from(can_withdraw_amount));
         } else {
-            log!("withdraw_unowned_asset error");
+            log!(WITHDRAW_UNOWNED_ASSET_ERROR);
         }
     }
 }
