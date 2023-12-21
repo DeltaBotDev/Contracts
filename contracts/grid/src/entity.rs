@@ -4,6 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 use crate::utils::{U256C};
 use near_sdk::BorshStorageKey;
+use crate::oracle::PriceIdentifier;
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -143,17 +144,19 @@ impl Clone for OrderKeyInfo {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OraclePrice {
-    pub valid_timestamp: u64,
-    pub price: U256C,
-}
+// #[derive(BorshDeserialize, BorshSerialize)]
+// pub struct OraclePrice {
+//     pub valid_timestamp: u64,
+//     pub price: U256C,
+// }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Pair {
     pub base_token: AccountId,
     pub quote_token: AccountId,
+    pub base_oracle_id: PriceIdentifier,
+    pub quote_oracle_id: PriceIdentifier,
 }
 
 impl Clone for Pair {
@@ -161,6 +164,8 @@ impl Clone for Pair {
         Pair {
             base_token: self.base_token.clone(),
             quote_token: self.quote_token.clone(),
+            base_oracle_id: self.base_oracle_id.clone(),
+            quote_oracle_id: self.quote_oracle_id.clone(),
         }
     }
 }

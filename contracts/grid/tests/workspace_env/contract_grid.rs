@@ -28,7 +28,7 @@ impl GridBotHelper {
         return token_contract.ft_transfer_call(caller, &(AccountId::from_str(self.0.id()).expect("Invalid AccountId")), amount, "".to_string()).await;
     }
 
-    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId, base_min_deposit: U256C, quote_min_deposit: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId, base_min_deposit: U256C, quote_min_deposit: U256C, base_oracle_id: String, quote_oracle_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start register_pair");
         caller
             .call(self.0.id(), "register_pair")
@@ -37,6 +37,8 @@ impl GridBotHelper {
                 "quote_token": *quote_token,
                 "base_min_deposit": base_min_deposit,
                 "quote_min_deposit": quote_min_deposit,
+                "base_oracle_id": base_oracle_id,
+                "quote_oracle_id": quote_oracle_id,
             }))
             .gas(300_000_000_000_000)
             .deposit(2_00_000_000_000_000_000_000_000)
@@ -44,19 +46,19 @@ impl GridBotHelper {
             .await
     }
 
-    pub async fn set_oracle_price(&self, caller: &Account, price: &U256C, pair_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
-        log!("start set_oracle_price");
-        caller
-            .call(self.0.id(), "set_oracle_price")
-            .args_json(json!({
-                "price": *price,
-                "pair_id": pair_id,
-            }))
-            .gas(300_000_000_000_000)
-            .deposit(1)
-            .transact()
-            .await
-    }
+    // pub async fn set_oracle_price(&self, caller: &Account, price: &U256C, pair_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    //     log!("start set_oracle_price");
+    //     caller
+    //         .call(self.0.id(), "set_oracle_price")
+    //         .args_json(json!({
+    //             "price": *price,
+    //             "pair_id": pair_id,
+    //         }))
+    //         .gas(300_000_000_000_000)
+    //         .deposit(1)
+    //         .transact()
+    //         .await
+    // }
 
     pub async fn create_bot(&self, caller: &Account, pair_id: String, slippage: u16, grid_type: GridType, grid_rate: u16, grid_offset: U256C, first_base_amount: U256C, first_quote_amount: U256C,
                             last_base_amount: U256C, last_quote_amount: U256C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,

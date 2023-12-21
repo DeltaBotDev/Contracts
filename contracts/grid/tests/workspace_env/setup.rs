@@ -18,11 +18,12 @@ pub async fn deploy_grid_bot(
     println!("deploy_grid_bot");
     let contract = worker.dev_deploy(&std::fs::read(GRID_WASM).unwrap()).await?;
     let owner_id = owner.id().clone();
+    let oracle_id = AccountId::new_unchecked("pyth-oracle.testnet".to_string());
     println!("contract deployed: {:?}", contract.id().clone());
 
     let gridbot = contract
         .call("new")
-        .args_json(serde_json::json!({ "owner_id": owner_id }))
+        .args_json(serde_json::json!({ "owner_id": owner_id, "oracle": oracle_id }))
         .max_gas()
         .transact()
         .await?;

@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, env};
+use near_sdk::{AccountId};
 use crate::{GridBotContract, U256C};
 
 impl GridBotContract {
@@ -30,18 +30,6 @@ impl GridBotContract {
             return U256C::from(0);
         }
         return self.protocol_fee_map.get(token).unwrap().clone();
-    }
-
-    pub fn internal_get_oracle_price(&self, pair_id: String) -> U256C {
-        if !self.oracle_price_map.contains_key(&pair_id) {
-            return U256C::from(0);
-        }
-        let price_info = self.oracle_price_map.get(&pair_id).unwrap();
-        if price_info.valid_timestamp < env::block_timestamp_ms() {
-            // oracle price expired
-            return U256C::from(0);
-        }
-        return price_info.price;
     }
 
     pub fn internal_get_pair_key(base_token: AccountId, quote_token: AccountId) -> String {

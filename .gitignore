@@ -5,3 +5,4 @@ contracts/grid/src/main.rs
 contracts/common/target/**
 res/**
 target/**
+oracle/node_modules/**

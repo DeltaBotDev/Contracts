@@ -21,6 +21,7 @@ impl GridBotContract {
             bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
         };
         // check order
+        require!(orders.get(level.clone() as u64).is_some(), INVALID_PARAM);
         let order = &orders.get(level as u64).unwrap();
         if GridBotContract::internal_order_is_empty(order) {
             require!(forward_or_reverse, INVALID_FORWARD_OR_REVERSE);

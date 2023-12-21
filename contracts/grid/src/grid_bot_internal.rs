@@ -1,13 +1,52 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env, require};
+use near_sdk::{env, log, require};
+use uint::hex;
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
 use crate::entity::StorageKey;
+use crate::oracle::{Price, PriceIdentifier};
 
 impl GridBotContract {
+
+    pub fn internal_create_bot(&mut self,
+                               base_price: Price,
+                               quote_price: Price,
+                               taker: &AccountId,
+                               slippage: u16,
+                               entry_price: &U256C,
+                               pair: &Pair,
+                               grid_bot: &mut GridBot,) {
+        require!(self.internal_check_oracle_price(*entry_price, base_price, quote_price, slippage), INVALID_PRICE);
+        // calculate all assets again
+        let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(grid_bot.first_quote_amount.clone(), grid_bot.last_base_amount.clone(), grid_bot.grid_sell_count.clone(), grid_bot.grid_buy_count.clone(),
+                                                                                                  grid_bot.grid_type.clone(), grid_bot.grid_rate.clone(), grid_bot.grid_offset.clone(), grid_bot.fill_base_or_quote.clone());
+        require!(taker.clone() == grid_bot.user, INVALID_QUOTE_AMOUNT);
+        require!(base_amount_sell == grid_bot.total_base_amount, INVALID_BASE_AMOUNT);
+        require!(quote_amount_buy == grid_bot.total_quote_amount, INVALID_QUOTE_AMOUNT);
+        // check balance
+        require!(self.internal_get_user_balance(taker, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
+        require!(self.internal_get_user_balance(taker, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
+
+        // initial orders space, create empty orders
+        let grid_count = grid_bot.grid_sell_count.clone() + grid_bot.grid_buy_count.clone();
+        let grid_orders = GridBotContract::create_default_orders(grid_count);
+        self.order_map.insert(&grid_bot.bot_id, &grid_orders);
+
+        // transfer assets
+        self.internal_transfer_assets_to_lock(taker.clone(), pair.base_token.clone(), base_amount_sell);
+        self.internal_transfer_assets_to_lock(taker.clone(), pair.quote_token.clone(), quote_amount_buy);
+
+        // init active status of bot
+        self.internal_init_bot_status(grid_bot, entry_price);
+
+        // insert bot
+        self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
+
+        log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
+    }
 
     pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>, user_deposit_amount: U256C) -> u128 {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
@@ -35,6 +74,47 @@ impl GridBotContract {
         return (user_deposit_amount - took_amount_sell).as_u128();
     }
 
+    pub fn internal_close_bot(&mut self, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+        // sign closed
+        bot.closed = true;
+
+        // harvest revenue, must fist execute, will split revenue from bot's asset
+        let (revenue_token, revenue) = self.internal_harvest_revenue(bot, pair);
+        // unlock token
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.base_token), bot.total_base_amount.clone());
+        self.internal_transfer_assets_to_unlock(&(bot.user), &(pair.quote_token), bot.total_quote_amount.clone());
+
+        // withdraw token
+        self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount);
+        self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount);
+        self.internal_withdraw(&(bot.user), &revenue_token, revenue);
+
+        self.bot_map.insert(bot_id, &bot);
+    }
+
+    pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+        require!(self.internal_check_bot_close_permission(base_price, quote_price, bot), INVALID_PRICE_OR_NO_PERMISSION);
+        self.internal_close_bot(bot_id, bot, pair);
+    }
+
+    pub fn internal_trigger_bot(&mut self, base_price: Price, quote_price: Price, bot_id: &String, bot: &mut GridBot) {
+        require!(base_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() >= env::block_timestamp_ms(), INVALID_PRICE);
+        require!(quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() >= env::block_timestamp_ms(), INVALID_PRICE);
+        let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
+
+        if bot.trigger_price_above_or_below.clone() && bot.trigger_price.clone().as_u128() <= oracle_pair_price {
+            // self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            bot.active = true;
+            self.bot_map.insert(&bot_id, &bot);
+        } else if !bot.trigger_price_above_or_below.clone() && bot.trigger_price.clone().as_u128() >= oracle_pair_price {
+            // self.bot_map.get_mut(&bot_id).unwrap().active = true;
+            bot.active = true;
+            self.bot_map.insert(&bot_id, &bot);
+        } else {
+            env::panic_str(CAN_NOT_TRIGGER);
+        }
+    }
+
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
         let next_id = self.next_bot_id.clone();
 
@@ -45,49 +125,69 @@ impl GridBotContract {
         return next_id;
     }
 
-    pub fn internal_init_bot_status(&self, bot: &mut GridBot, entry_price: U256C) {
+    pub fn internal_init_bot_status(&self, bot: &mut GridBot, entry_price: &U256C) {
         if bot.trigger_price == U256C::from(0) {
             bot.active = true;
             return;
         }
-        if entry_price >= bot.trigger_price {
+        if entry_price.clone() >= bot.trigger_price {
             bot.trigger_price_above_or_below = false;
         } else {
             bot.trigger_price_above_or_below = true;
         }
     }
 
-    pub fn internal_check_oracle_price(&self, entry_price: U256C, pair_id: String, slippage: u16) -> bool {
-        if !self.oracle_price_map.contains_key(&pair_id) {
+    pub fn internal_check_oracle_price(&self, entry_price: U256C, base_price: Price, quote_price: Price, slippage: u16) -> bool {
+        if base_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
             return false;
         }
-        let price_info = self.oracle_price_map.get(&pair_id).unwrap();
-        if price_info.valid_timestamp < env::block_timestamp_ms() {
-            // oracle price expired
+        if quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
             return false;
         }
+        // base_price = usd amount / base amount
+        // quote_price = usd amount / quote amount
+        // oracle_pair_price = quote amount / base amount = base_price / quote_price
+        // log!("base_price: {}", base_price.price.clone().0.to_string());
+        // log!("quote_price: {}", quote_price.price.clone().0.to_string());
+        // log!("base_price big decimal: {}", BigDecimal::from(base_price.price.clone().0 as u64).to_string());
+        // log!("quote_price big decimal: {}", BigDecimal::from(quote_price.price.clone().0 as u64).to_string());
+        // log!("first big decimal: {}", (BigDecimal::from(base_price.price.clone().0 as u64) / BigDecimal::from(quote_price.price.clone().0 as u64)).to_string());
+        // log!("second big decimal: {}", (BigDecimal::from(base_price.price.clone().0 as u64) / BigDecimal::from(quote_price.price.clone().0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).to_string());
+        // log!("third big decimal: {}", (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_u128().to_string());
+        // log!("fource big decimal: {}", (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128().to_string());
+        let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
 
-        let recorded_price = price_info.price;
-        if entry_price >= recorded_price {
-            return (entry_price - recorded_price) * SLIPPAGE_DENOMINATOR / entry_price <= U256C::from(slippage);
+        if entry_price.as_u128() >= oracle_pair_price {
+            log!("more entry_price: {}", ((entry_price.as_u128() - oracle_pair_price.clone()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128()).to_string());
+            log!("more entry_price: {}", entry_price.as_u128());
+            return (entry_price.as_u128() - oracle_pair_price) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage as u128;
         } else {
-            return (recorded_price - entry_price) * SLIPPAGE_DENOMINATOR / entry_price <= U256C::from(slippage);
+            log!("more oracle_pair_price: {}", ((oracle_pair_price.clone() - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128()).to_string());
+            log!("more oracle_pair_price: {}", entry_price.as_u128());
+            return (oracle_pair_price - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage  as u128;
         }
     }
 
-    pub fn internal_check_bot_close_permission(&self, user: &AccountId, bot: &GridBot) -> bool {
-        if user == &(bot.user) {
+    pub fn internal_check_bot_close_permission(&self, base_price: Price, quote_price: Price, bot: &GridBot) -> bool {
+        if base_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
+            return false;
+        }
+        if quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
+            return false;
+        }
+        // base_price = usd amount / base amount
+        // quote_price = usd amount / quote amount
+        // oracle_pair_price = quote amount / base amount = base_price / quote_price
+        let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
+        if oracle_pair_price >= bot.take_profit_price.as_u128() {
             return true;
         }
-        let oracle_price = self.internal_get_oracle_price(bot.pair_id.clone());
-        if oracle_price >= bot.take_profit_price {
-            return true;
-        }
-        if oracle_price <= bot.stop_loss_price {
+        if oracle_pair_price <= bot.stop_loss_price.as_u128() {
             return true;
         }
         return false;
     }
+
     // TODO need check again, and test
     pub fn internal_get_first_forward_order(grid_bot: GridBot, pair: Pair, level: usize) -> Order {
         let mut order = Order{
@@ -215,6 +315,20 @@ impl GridBotContract {
         self.deposit_limit_map.insert(&token, &min_deposit);
         self.internal_storage_deposit(&env::current_account_id(), &token, DEFAULT_TOKEN_STORAGE_FEE);
         return U256C::from(DEFAULT_TOKEN_STORAGE_FEE);
+    }
+
+    pub fn internal_format_price_identifier(&self, oracle_id: String) -> PriceIdentifier {
+        // 32bytes, hex len = 64
+        require!(oracle_id.clone().len() == 64, INVALID_ORACLE_ID);
+        let oracle_bytes;
+        match hex::decode(oracle_id) {
+            Ok(bytes) => oracle_bytes = bytes,
+            Err(e) => env::panic_str(INVALID_ORACLE_ID),
+        }
+        let oracle_bytes_slice = &oracle_bytes[..];
+        let mut array = [0u8; 32];
+        array.copy_from_slice(oracle_bytes_slice);
+        return PriceIdentifier(array);
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {
