@@ -222,7 +222,7 @@ impl GridBotContract {
         // deposit first
         self.internal_deposit(sender_id, token_in, amount);
         // take
-        let left = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders, U256C::from(amount.0));
+        let left = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders, token_in, U256C::from(amount.0));
         // reduce left
         if left.clone() > 0 {
             // add amount to user

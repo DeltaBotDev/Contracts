@@ -48,9 +48,10 @@ impl GridBotContract {
         log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
     }
 
-    pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>, user_deposit_amount: U256C) -> u128 {
+    pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>, user_deposit_token: &AccountId, user_deposit_amount: U256C) -> u128 {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
+        require!(user_deposit_token == take_order.token_sell, INVALID_TOKEN);
         require!(user_deposit_amount >= take_order.amount_sell, INVALID_ORDER_AMOUNT);
         require!(take_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
         require!(take_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
