@@ -178,8 +178,8 @@ pub enum StorageKey {
     UserLockedBalanceSubKey(AccountId),
     OrdersMainKey,
     OrdersSubKey(u64),
-    WithdrawFailedMainKey,
-    WithdrawFailedSubKey(AccountId),
+    // WithdrawFailedMainKey,
+    // WithdrawFailedSubKey(AccountId),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]

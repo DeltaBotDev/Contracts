@@ -203,11 +203,14 @@ impl ExtSelf for GridBotContract {
         self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), taker, slippage, entry_price, pair, grid_bot);
     }
 
+    #[private]
     fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, pair: &Pair, grid_bot: &mut GridBot) {
         let price_list = self.private_get_price_list(promise_num, tokens);
         require!(price_list.len() == PAIR_TOKEN_LENGTH, INVALID_PAIR_PRICE_LENGTH);
         self.internal_auto_close_bot(price_list[0].clone(), price_list[1].clone(), &grid_bot.bot_id.clone(), grid_bot, pair);
     }
+
+    #[private]
     fn get_price_for_trigger_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, grid_bot: &mut GridBot) {
         let price_list = self.private_get_price_list(promise_num, tokens);
         require!(price_list.len() == PAIR_TOKEN_LENGTH, INVALID_PAIR_PRICE_LENGTH);

@@ -34,31 +34,31 @@ impl GridBotContract {
         self.user_balances_map.insert(user, &user_balances);
     }
 
-    pub fn internal_reduce_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
-            map.insert(token, &U256C::from(0));
-            map
-        });
+    // pub fn internal_reduce_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
+    //     let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
+    //         let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
+    //         map.insert(token, &U256C::from(0));
+    //         map
+    //     });
+    //
+    //     let balance = user_balances.get(token).unwrap_or(U256C::from(0));
+    //     user_balances.insert(token, &(balance - amount));
+    //
+    //     self.user_withdraw_failed_map.insert(user, &user_balances);
+    // }
 
-        let balance = user_balances.get(token).unwrap_or(U256C::from(0));
-        user_balances.insert(token, &(balance - amount));
-
-        self.user_withdraw_failed_map.insert(user, &user_balances);
-    }
-
-    pub fn internal_increase_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
-            map.insert(token, &U256C::from(0));
-            map
-        });
-
-        let balance = user_balances.get(token).unwrap_or(U256C::from(0));
-        user_balances.insert(token, &(balance + amount));
-
-        self.user_withdraw_failed_map.insert(user, &user_balances);
-    }
+    // pub fn internal_increase_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
+    //     let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
+    //         let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
+    //         map.insert(token, &U256C::from(0));
+    //         map
+    //     });
+    //
+    //     let balance = user_balances.get(token).unwrap_or(U256C::from(0));
+    //     user_balances.insert(token, &(balance + amount));
+    //
+    //     self.user_withdraw_failed_map.insert(user, &user_balances);
+    // }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U256C) {
         let balance = self.global_balances_map.get(token).unwrap();
@@ -250,8 +250,8 @@ impl GridBotContract {
         emit::withdraw_protocol_fee_started(&user, amount.as_u128(), &token);
     }
 
-    pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
-        self.internal_ft_transfer_unowned_asset(&user, &token, amount.as_u128());
-        emit::withdraw_unowned_asset_started(&user, amount.as_u128(), &token);
-    }
+    // pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+    //     self.internal_ft_transfer_unowned_asset(&user, &token, amount.as_u128());
+    //     emit::withdraw_unowned_asset_started(&user, amount.as_u128(), &token);
+    // }
 }

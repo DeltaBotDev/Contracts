@@ -52,12 +52,12 @@ pub struct GridBotContract {
     /// pair_map[base_token_addr+":"+quote_token_addr] = Pair
     pub pair_map: LookupMap<String, Pair>,
     pub protocol_fee_map: LookupMap<AccountId, U256C>,
-    pub storage_fee: u128,
+    // pub storage_fee: u128,
     pub global_balances_map: LookupMap<AccountId, U256C>,
     pub deposit_limit_map: LookupMap<AccountId, U256C>,
     pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
-    pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
 }
 
 #[near_bindgen]
@@ -78,12 +78,12 @@ impl GridBotContract {
             // oracle_price_map: LookupMap::new(b"oracle".to_vec()),
             pair_map: LookupMap::new(b"pairs".to_vec()),
             protocol_fee_map: LookupMap::new(b"protocol".to_vec()),
-            storage_fee: 0,
+            // storage_fee: 0,
             global_balances_map: LookupMap::new(b"global".to_vec()),
             deposit_limit_map: LookupMap::new(b"deposit_limit".to_vec()),
             user_balances_map: LookupMap::new(StorageKey::UserBalanceMainKey),
             user_locked_balances_map: LookupMap::new(StorageKey::UserLockedBalanceMainKey),
-            user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
+            // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::*;
-use near_sdk::{assert_one_yocto, Gas, near_bindgen, Promise, require};
-use serde_json::json;
+use near_sdk::{assert_one_yocto, near_bindgen, require};
 use crate::entity::{GridType};
 
 #[near_bindgen]
@@ -39,8 +38,8 @@ impl GridBotContract {
             total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0)
         };
 
-        // record storage fee
-        self.storage_fee += env::attached_deposit();
+        // // record storage fee
+        // self.storage_fee += env::attached_deposit();
 
         // request token price
         self.get_price_for_create_bot(&pair, &user, slippage, &entry_price, &mut new_grid_bot);
@@ -105,25 +104,26 @@ impl GridBotContract {
         self.internal_withdraw_protocol_fee(&to_user, &token, amount);
     }
 
-    #[payable]
-    pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
-        self.assert_owner();
-        Promise::new(token.clone())
-            .function_call(
-                "ft_balance_of".to_string(),
-                json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
-                0,
-                Gas(0),
-            )
-            .then(
-                Self::ext(self.owner_id.clone())
-                    .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
-                    .after_ft_balance_of_for_withdraw_unowned_asset(
-                        token.clone(),
-                        to_user,
-                    )
-            );
-    }
+    // #[payable]
+    // pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
+    //     self.assert_owner();
+    //     require!(self.status != GridStatus::Shutdown, PAUSE_OR_SHUTDOWN);
+    //     Promise::new(token.clone())
+    //         .function_call(
+    //             "ft_balance_of".to_string(),
+    //             json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
+    //             0,
+    //             Gas(0),
+    //         )
+    //         .then(
+    //             Self::ext(self.owner_id.clone())
+    //                 .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+    //                 .after_ft_balance_of_for_withdraw_unowned_asset(
+    //                     token.clone(),
+    //                     to_user,
+    //                 )
+    //         );
+    // }
 
     #[payable]
     pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U256C) {
