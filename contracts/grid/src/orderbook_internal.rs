@@ -1,4 +1,4 @@
-use near_sdk::{require};
+use near_sdk::{log, require};
 use crate::*;
 use std::ops::{Div};
 use crate::big_decimal::{BigDecimal};
@@ -61,6 +61,7 @@ impl GridBotContract {
         // update bot
         self.bot_map.insert(&bot_id, &bot);
 
+        log!("Success take order, maker bot id:{}, forward_or_reserve:{}, level:{}, took sell:{}, took buy:{}", bot_id, forward_or_reverse, level, taker_sell, taker_buy);
         return (taker_sell, taker_buy);
     }
 
