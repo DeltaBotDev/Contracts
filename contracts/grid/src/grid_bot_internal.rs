@@ -48,11 +48,9 @@ impl GridBotContract {
         log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
     }
 
-    pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>, user_deposit_token: &AccountId, user_deposit_amount: U256C) -> u128 {
+    pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) -> (U256C, U256C) {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         require!(maker_orders.len() > 0, INVALID_MAKER_ORDERS);
-        require!(user_deposit_token.clone() == take_order.token_sell, INVALID_TOKEN);
-        require!(user_deposit_amount >= take_order.amount_sell, INVALID_ORDER_AMOUNT);
         require!(take_order.amount_sell != U256C::from(0), INVALID_ORDER_AMOUNT);
         require!(take_order.amount_buy != U256C::from(0), INVALID_ORDER_AMOUNT);
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
@@ -69,10 +67,8 @@ impl GridBotContract {
         self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
         self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
 
-        // withdraw for taker
-        self.internal_withdraw(&user, &(take_order.token_buy), took_amount_buy);
-        // left take_order.amount_sell - took_amount_sell
-        return (user_deposit_amount - took_amount_sell).as_u128();
+        log!("Success take orders, sell token:{}, buy token:{}, sell amount:{}, buy amount:{}", take_order.token_sell, take_order.token_buy, take_order.amount_sell, take_order.amount_buy);
+        return (took_amount_sell, took_amount_buy);
     }
 
     pub fn internal_close_bot(&mut self, bot_id: &String, bot: &mut GridBot, pair: &Pair) {

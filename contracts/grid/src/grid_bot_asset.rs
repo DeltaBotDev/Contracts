@@ -221,15 +221,21 @@ impl GridBotContract {
         let take_request = serde_json::from_str::<TakeRequest>(&msg).expect(INVALID_TAKE_PARAM);
         // deposit first
         self.internal_deposit(sender_id, token_in, amount);
+        // require
+        require!(token_in.clone() == take_request.take_order.token_sell, INVALID_TOKEN);
+        require!(amount.clone().0 >= take_request.take_order.amount_sell.as_u128(), INVALID_ORDER_AMOUNT);
         // take
-        let left = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders, token_in, U256C::from(amount.0));
+        let (took_sell, took_buy) = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders);
         // reduce left
+        let left = amount.0 - took_sell.as_u128();
         if left.clone() > 0 {
             // add amount to user
             self.internal_reduce_asset(sender_id, token_in, &(U256C::from(left.clone())));
             // add amount to global
             self.internal_reduce_global_asset(token_in, &(U256C::from(left.clone())));
         }
+        // withdraw for taker
+        self.internal_withdraw(sender_id, &(take_request.take_order.token_buy), took_buy);
         return U128::from(left);
     }
 

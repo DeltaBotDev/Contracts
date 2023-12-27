@@ -46,6 +46,12 @@ impl GridBotContract {
     }
 
     #[payable]
+    pub fn take_orders(&mut self, take_order: Order, maker_orders: Vec<OrderKeyInfo>) {
+        assert_one_yocto();
+        self.internal_take_orders(&(env::predecessor_account_id()), &take_order, maker_orders);
+    }
+
+    #[payable]
     pub fn close_bot(&mut self, bot_id: String) {
         assert_one_yocto();
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
