@@ -7,6 +7,7 @@ use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
 use crate::entity::StorageKey;
+use crate::events::emit;
 use crate::oracle::{Price, PriceIdentifier};
 
 impl GridBotContract {
@@ -58,16 +59,17 @@ impl GridBotContract {
         let mut took_amount_buy = U256C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
-            let (taker_sell, taker_buy) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            let (taker_sell, taker_buy, maker) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
             took_amount_sell += taker_sell;
             took_amount_buy += taker_buy;
+            emit::take_order(user, &maker, maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &taker_sell, &taker_buy);
         }
         require!(take_order.amount_sell >= took_amount_sell, INVALID_ORDER_MATCHING);
         // transfer taker's asset
         self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
         self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
 
-        log!("Success take orders, sell token:{}, buy token:{}, sell amount:{}, buy amount:{}", take_order.token_sell, take_order.token_buy, take_order.amount_sell, take_order.amount_buy);
+        // log!("Success take orders, sell token:{}, buy token:{}, sell amount:{}, buy amount:{}", take_order.token_sell, take_order.token_buy, take_order.amount_sell, take_order.amount_buy);
         return (took_amount_sell, took_amount_buy);
     }
 

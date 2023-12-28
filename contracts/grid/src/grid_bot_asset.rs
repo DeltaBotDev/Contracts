@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, log, require};
+use near_sdk::{AccountId, Balance, require};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::U128;
 use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};
@@ -210,11 +210,13 @@ impl GridBotContract {
         require!(self.global_balances_map.contains_key(token_in), INVALID_TOKEN);
         // require min deposit
         require!(amount.clone().0 >= self.deposit_limit_map.get(token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
-        log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
+        // log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
         // add amount to user
         self.internal_increase_asset(sender_id, token_in, &(U256C::from(amount.clone().0)));
         // add amount to global
-        self.internal_increase_global_asset(token_in, &(U256C::from(amount.0)));
+        self.internal_increase_global_asset(token_in, &(U256C::from(amount.clone().0)));
+        // event
+        emit::deposit_success(sender_id, amount.clone().0, token_in);
     }
 
     pub fn internal_parse_take_request(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128, msg: String) -> U128 {
@@ -234,6 +236,8 @@ impl GridBotContract {
             // add amount to global
             self.internal_reduce_global_asset(token_in, &(U256C::from(left.clone())));
         }
+        // event
+        emit::deposit_return_success(sender_id, left.clone(), token_in);
         // withdraw for taker
         self.internal_withdraw(sender_id, &(take_request.take_order.token_buy), took_buy);
         return U128::from(left);

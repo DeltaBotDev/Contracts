@@ -16,10 +16,25 @@ pub mod emit {
         pub token_id: &'a AccountId,
     }
 
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct TakeOrder<'a> {
+        pub taker: &'a AccountId,
+        pub maker: &'a AccountId,
+        pub maker_bot_id: String,
+        pub maker_forward_or_reverse: bool,
+        #[serde(with = "u128_dec_format")]
+        pub maker_level: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub took_sell: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub took_buy: Balance,
+    }
+
     fn log_event<T: Serialize>(event: &str, data: T) {
         let event = json!({
-            "standard": "Unimate",
-            "version": "1.0.0",
+            "standard": "DeltaBot",
+            "version": "0.0.1",
             "event": event,
             "data": [data]
         });
@@ -142,6 +157,43 @@ pub mod emit {
                 account_id: &account_id,
                 amount,
                 token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn deposit_success(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "deposit_success",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn deposit_return_success(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "deposit_return_success",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
+    pub fn take_order(taker: &AccountId, maker: &AccountId, maker_bot_id: String, maker_forward_or_reverse: bool, maker_level: usize, took_sell: &U256C, took_buy: &U256C) {
+        log_event(
+            "take_order",
+            TakeOrder {
+                taker,
+                maker,
+                maker_bot_id,
+                maker_forward_or_reverse,
+                maker_level: maker_level as u128,
+                took_sell: took_sell.as_u128(),
+                took_buy: took_buy.as_u128(),
             },
         );
     }
