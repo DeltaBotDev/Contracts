@@ -188,7 +188,7 @@ pub mod emit {
 
     pub fn deposit_success(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
         log_event(
-            "deposit_success",
+            "deposit",
             AccountAmountToken {
                 account_id: &account_id,
                 amount,
@@ -199,7 +199,7 @@ pub mod emit {
 
     pub fn deposit_return_success(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
         log_event(
-            "deposit_return_success",
+            "deposit_return",
             AccountAmountToken {
                 account_id: &account_id,
                 amount,
