@@ -48,6 +48,7 @@ impl GridBotContract {
     #[payable]
     pub fn take_orders(&mut self, take_order: Order, maker_orders: Vec<OrderKeyInfo>) {
         assert_one_yocto();
+        require!(self.market_user_map.contains_key(&(env::predecessor_account_id())), INVALID_USER);
         self.internal_take_orders(&(env::predecessor_account_id()), &take_order, maker_orders);
     }
 
@@ -201,13 +202,9 @@ impl GridBotContract {
         self.oracle_valid_time = new_valid_time;
     }
 
-    // #[payable]
-    // pub fn set_oracle_price(&mut self, price: U256C, pair_id: String) {
-    //     self.assert_owner();
-    //     let price_info = OraclePrice {
-    //         valid_timestamp: env::block_timestamp_ms() + 3600000,
-    //         price,
-    //     };
-    //     self.oracle_price_map.insert(&pair_id, &price_info);
-    // }
+    #[payable]
+    pub fn set_market_user(&mut self, market_user: AccountId, enable: bool) {
+        self.assert_owner();
+        self.market_user_map.insert(&market_user, &enable);
+    }
 }

@@ -46,6 +46,13 @@ impl GridBotContract {
         return U256C::from(self.protocol_fee_rate.clone());
     }
 
+    pub fn query_market_user(&self, user: AccountId) -> bool {
+        if !self.market_user_map.contains_key(&user) {
+            return false;
+        }
+        return self.market_user_map.get(&user).unwrap();
+    }
+
     // pub fn query_storage_fee(&self) -> U256C {
     //     return U256C::from(self.storage_fee.clone());
     // }

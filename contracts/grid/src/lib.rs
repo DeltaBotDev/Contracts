@@ -58,6 +58,7 @@ pub struct GridBotContract {
     pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    pub market_user_map: LookupMap<AccountId, bool>,
 }
 
 #[near_bindgen]
@@ -84,6 +85,7 @@ impl GridBotContract {
             user_balances_map: LookupMap::new(StorageKey::UserBalanceMainKey),
             user_locked_balances_map: LookupMap::new(StorageKey::UserLockedBalanceMainKey),
             // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
+            market_user_map: LookupMap::new(b"market_users".to_vec()),
         }
     }
 }

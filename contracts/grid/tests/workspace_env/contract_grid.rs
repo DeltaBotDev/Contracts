@@ -347,14 +347,14 @@ impl GridBotHelper {
             .json::<Option<U256C>>()
     }
 
-    pub async fn query_storage_fee(&self) -> Result<U256C, workspaces::error::Error> {
-        log!("start query_storage_fee");
-        self.0
-            .call("query_storage_fee")
-            // .args_json(json!({
-            // }))
-            .view()
-            .await?
-            .json::<U256C>()
-    }
+    // pub async fn query_storage_fee(&self) -> Result<U256C, workspaces::error::Error> {
+    //     log!("start query_storage_fee");
+    //     self.0
+    //         .call("query_storage_fee")
+    //         // .args_json(json!({
+    //         // }))
+    //         .view()
+    //         .await?
+    //         .json::<U256C>()
+    // }
 }
