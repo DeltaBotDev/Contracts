@@ -18,6 +18,20 @@ pub mod emit {
 
     #[derive(Serialize)]
     #[serde(crate = "near_sdk::serde")]
+    struct CreateBot<'a> {
+        pub account_id: &'a AccountId,
+        pub bot_id: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct CloseBot<'a> {
+        pub account_id: &'a AccountId,
+        pub bot_id: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
     struct TakeOrder<'a> {
         pub taker: &'a AccountId,
         pub maker: &'a AccountId,
@@ -29,6 +43,17 @@ pub mod emit {
         pub took_sell: Balance,
         #[serde(with = "u128_dec_format")]
         pub took_buy: Balance,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct Claim<'a> {
+        pub claim_user: &'a AccountId,
+        pub bot_id: String,
+        pub user: &'a AccountId,
+        pub revenue_token: &'a AccountId,
+        #[serde(with = "u128_dec_format")]
+        pub revenue: Balance,
     }
 
     fn log_event<T: Serialize>(event: &str, data: T) {
@@ -197,4 +222,38 @@ pub mod emit {
             },
         );
     }
+
+    pub fn create_bot(account_id: &AccountId, bot_id: String) {
+        log_event(
+            "create_bot",
+            CreateBot {
+                account_id: &account_id,
+                bot_id,
+            },
+        );
+    }
+
+    pub fn close_bot(account_id: &AccountId, bot_id: String) {
+        log_event(
+            "close_bot",
+            CloseBot {
+                account_id: &account_id,
+                bot_id,
+            },
+        );
+    }
+
+    pub fn claim(claim_user: &AccountId, user: &AccountId, bot_id: String, revenue_token: &AccountId, revenue: U256C) {
+        log_event(
+            "claim",
+            Claim {
+                claim_user,
+                bot_id,
+                user,
+                revenue_token,
+                revenue: revenue.as_u128(),
+            },
+        );
+    }
+
 }

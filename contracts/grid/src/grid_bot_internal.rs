@@ -46,7 +46,8 @@ impl GridBotContract {
         // insert bot
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
-        log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
+        // log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
+        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone())
     }
 
     pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) -> (U256C, U256C) {
@@ -73,7 +74,7 @@ impl GridBotContract {
         return (took_amount_sell, took_amount_buy);
     }
 
-    pub fn internal_close_bot(&mut self, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+    pub fn internal_close_bot(&mut self, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
         // sign closed
         bot.closed = true;
 
@@ -89,11 +90,13 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
 
         self.bot_map.insert(bot_id, &bot);
+
+        emit::close_bot(user, bot_id.clone());
     }
 
-    pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+    pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
         require!(self.internal_check_bot_close_permission(base_price, quote_price, bot), INVALID_PRICE_OR_NO_PERMISSION);
-        self.internal_close_bot(bot_id, bot, pair);
+        self.internal_close_bot(user, bot_id, bot, pair);
     }
 
     pub fn internal_trigger_bot(&mut self, base_price: Price, quote_price: Price, bot_id: &String, bot: &mut GridBot) {

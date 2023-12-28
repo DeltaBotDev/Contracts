@@ -1,6 +1,7 @@
 use crate::*;
 use near_sdk::{assert_one_yocto, near_bindgen, require};
 use crate::entity::{GridType};
+use crate::events::emit;
 
 #[near_bindgen]
 impl GridBotContract {
@@ -63,7 +64,7 @@ impl GridBotContract {
         require!(env::predecessor_account_id() == bot.user, INVALID_USER);
         // require!(self.internal_check_bot_close_permission(&user, &bot), NO_PERMISSION);
 
-        self.internal_close_bot(&bot_id, &mut bot, &pair);
+        self.internal_close_bot(&env::predecessor_account_id(), &bot_id, &mut bot, &pair);
     }
 
     pub fn auto_close_bot(&mut self, bot_id: String) {
@@ -71,7 +72,7 @@ impl GridBotContract {
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
 
-        self.get_price_for_close_bot(&pair, &mut bot);
+        self.get_price_for_close_bot(&env::predecessor_account_id(), &pair, &mut bot);
     }
 
     pub fn claim(&mut self, bot_id: String) {
@@ -82,6 +83,8 @@ impl GridBotContract {
         let (revenue_token, revenue) = self.internal_harvest_revenue(&mut bot, &pair);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
         self.bot_map.insert(&bot_id, &bot);
+        // event
+        emit::claim(&env::predecessor_account_id(), &(bot.user), bot_id, &revenue_token, revenue);
     }
 
     pub fn trigger_bot(&mut self, bot_id: String) {

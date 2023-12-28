@@ -158,6 +158,7 @@ impl GridBotContract {
 
     pub fn get_price_for_close_bot(
         &mut self,
+        user: &AccountId,
         pair: &Pair,
         grid_bot: &mut GridBot,
     ) {
@@ -165,7 +166,7 @@ impl GridBotContract {
         promise.then(
             Self::ext(env::current_account_id())
                 .with_static_gas(GAS_FOR_ORACLE)
-                .get_price_for_close_bot_callback(tokens.len(), tokens, pair, grid_bot),
+                .get_price_for_close_bot_callback(tokens.len(), tokens, user, pair, grid_bot),
         );
     }
 
@@ -187,7 +188,7 @@ impl GridBotContract {
 trait ExtSelf {
     fn get_price_for_create_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, taker: &AccountId,
                                          slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot);
-    fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, pair: &Pair, grid_bot: &mut GridBot);
+    fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user: &AccountId, pair: &Pair, grid_bot: &mut GridBot);
     fn get_price_for_trigger_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, grid_bot: &mut GridBot);
 }
 
@@ -204,10 +205,10 @@ impl ExtSelf for GridBotContract {
     }
 
     #[private]
-    fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, pair: &Pair, grid_bot: &mut GridBot) {
+    fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user:&AccountId, pair: &Pair, grid_bot: &mut GridBot) {
         let price_list = self.private_get_price_list(promise_num, tokens);
         require!(price_list.len() == PAIR_TOKEN_LENGTH, INVALID_PAIR_PRICE_LENGTH);
-        self.internal_auto_close_bot(price_list[0].clone(), price_list[1].clone(), &grid_bot.bot_id.clone(), grid_bot, pair);
+        self.internal_auto_close_bot(price_list[0].clone(), price_list[1].clone(), user, &grid_bot.bot_id.clone(), grid_bot, pair);
     }
 
     #[private]
