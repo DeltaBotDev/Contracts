@@ -9,10 +9,6 @@ use crate::workspace_env::{deploy_grid_bot, deploy_token, FtContractHelper, Grid
 use std::time::{SystemTime, UNIX_EPOCH};
 use workspaces::types::SecretKey;
 
-// cosmosfirst.testnet: ed25519:2K19UNqRZKD7USxhD36M3ppXEJ8R392XWpPpNbjpMyP3eLiLm4mmGuZCp7fNs8yeV62DhKCJ8sUvW8m18nCnVrPQ
-// cosmossecond.testnet: ed25519:3Uswy3tqTTmG6U8Fz5shDyfFSTN9XJD4366vZ79a3kTtBSdPhjh7QEQDcxMCyybhEovoRA7qXBj4x7utnbL2XgHM
-// cosmosthird.testnet: ed25519:34z4p8KwF2bNbSAG8awSdp693PsJxSWHayEBvqyP8qtcDLmfRLUfYdztAKZZXKCJwzePiPM8yf7pBq3NLC99jFmt
-
 pub const owner_id_str: &str = "cosmosfirst.testnet";
 pub const owner_key_str: &str = "2K19UNqRZKD7USxhD36M3ppXEJ8R392XWpPpNbjpMyP3eLiLm4mmGuZCp7fNs8yeV62DhKCJ8sUvW8m18nCnVrPQ";
 
@@ -48,13 +44,13 @@ pub async fn create_contract() -> Result<(Worker<Testnet>, Account, Account, Acc
     // let usdc_token_contract = setup_token_contract(&worker, "USDC", 6).await?;
     let usdc_token_contract = FtContractHelper(recovery_contract(usdc_id_str, usdc_key_str, &worker).await);
 
-    log!("eth_token_contract addr:{}", eth_token_contract.get_account_id());
-    let secret_str = serde_json::to_string(&(eth_token_contract.0.as_account().secret_key())).unwrap();
-    println!("secret_str:{}", secret_str);
-
-    log!("usdc_token_contract addr:{}", usdc_token_contract.get_account_id());
-    let secret_str = serde_json::to_string(&(usdc_token_contract.0.as_account().secret_key())).unwrap();
-    println!("secret_str:{}", secret_str);
+    // log!("eth_token_contract addr:{}", eth_token_contract.get_account_id());
+    // let secret_str = serde_json::to_string(&(eth_token_contract.0.as_account().secret_key())).unwrap();
+    // println!("secret_str:{}", secret_str);
+    //
+    // log!("usdc_token_contract addr:{}", usdc_token_contract.get_account_id());
+    // let secret_str = serde_json::to_string(&(usdc_token_contract.0.as_account().secret_key())).unwrap();
+    // println!("secret_str:{}", secret_str);
 
     Ok((worker, owner, maker_account, taker_account, gridbot_contract, eth_token_contract, usdc_token_contract))
 }
