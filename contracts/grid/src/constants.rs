@@ -6,7 +6,8 @@ pub const ONE_YOCTO: Balance = 1;
 
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas(Gas::ONE_TERA.0 * 10);
 pub const GAS_FOR_AFTER_FT_TRANSFER: Gas = Gas(Gas::ONE_TERA.0 * 20);
-pub const GAS_FOR_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 10);
+pub const GAS_FOR_CREATE_BOT_AFTER_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 250);
+pub const GAS_FOR_AFTER_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 20);
 
 /// slippage denominator
 pub const SLIPPAGE_DENOMINATOR: u16 = 10000;
@@ -15,6 +16,7 @@ pub const SLIPPAGE_DENOMINATOR: u16 = 10000;
 pub const GRID_RATE_DENOMINATOR: u16 = 10000;
 
 pub const DEFAULT_PROTOCOL_FEE: u128 = 10000;
+pub const DEFAULT_TAKER_FEE: u128 = 500;
 pub const MAX_PROTOCOL_FEE: u128 = 100000;
 /// protocol fee denominator
 pub const PROTOCOL_FEE_DENOMINATOR: u128 = 1000000;

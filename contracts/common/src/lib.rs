@@ -64,7 +64,15 @@ near_contract_standards::impl_fungible_token_storage!(FTContract, token);
 #[near_bindgen]
 impl FungibleTokenMetadataProvider for FTContract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
-        unimplemented!()
+        FungibleTokenMetadata {
+            spec: "ft-1.0.0".to_string(),
+            name: self.name.clone(),
+            symbol: self.symbol.clone(),
+            icon: None,
+            reference: None,
+            reference_hash: None,
+            decimals: self.decimals.clone(),
+        }
     }
 }
 

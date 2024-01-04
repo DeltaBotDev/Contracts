@@ -40,6 +40,7 @@ pub struct GridBotContract {
     pub status: GridStatus,
     /// real_protocol_fee = protocol_fee / 1000000
     pub protocol_fee_rate: u128,
+    pub taker_fee_rate: u128,
     /// bot_map[bot_id] = bot
     /// bot_id = GRID:index
     pub bot_map: LookupMap<String, GridBot>,
@@ -73,6 +74,7 @@ impl GridBotContract {
             status: GridStatus::Running,
             // 1%
             protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
+            taker_fee_rate: DEFAULT_TAKER_FEE,
             bot_map: LookupMap::new(b"bots".to_vec()),
             order_map: LookupMap::new(b"orders".to_vec()),
             next_bot_id: 0,

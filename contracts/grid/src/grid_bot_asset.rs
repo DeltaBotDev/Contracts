@@ -147,25 +147,25 @@ impl GridBotContract {
         self.internal_reduce_asset(user, token, &amount);
     }
 
-    pub fn internal_add_protocol_fee(&mut self, bot: &mut GridBot, token: &AccountId, fee: U256C, pair: &Pair) {
-        if !self.protocol_fee_map.contains_key(token) {
-            self.protocol_fee_map.insert(&token, &U256C::from(0));
-        }
+    pub fn internal_add_protocol_fee_from_revenue(&mut self, bot: &mut GridBot, token: &AccountId, fee: U256C, pair: &Pair) {
+        // if !self.protocol_fee_map.contains_key(token) {
+        //     self.protocol_fee_map.insert(&token, &U256C::from(0));
+        // }
         // let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
         // let user = bot_mut.user.clone();
         let user = bot.user.clone();
         // reduce bot's asset
         if *token == pair.base_token {
             // bot_mut.total_base_amount -= U256C::from(fee.clone());
-            bot.total_base_amount -= U256C::from(fee.clone());
+            bot.total_base_amount -= fee.clone();
         } else {
             // bot_mut.total_quote_amount -= U256C::from(fee.clone());
-            bot.total_quote_amount -= U256C::from(fee.clone());
+            bot.total_quote_amount -= fee.clone();
         }
         // reduce user's lock asset
-        self.internal_reduce_locked_assets(&user, &token, &(U256C::from(fee.clone())));
+        self.internal_reduce_locked_assets(&user, &token, &(fee.clone()));
         // add into protocol fee map
-        self.internal_increase_protocol_fee(token, &(U256C::from(fee.clone())));
+        self.internal_increase_protocol_fee(token, &(fee.clone()));
     }
 
     pub fn internal_update_bot_asset(bot: &mut GridBot, pair: &Pair, token_sell: AccountId, amount_sell: Balance, amount_buy: Balance) {

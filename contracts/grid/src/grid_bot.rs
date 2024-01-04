@@ -136,10 +136,12 @@ impl GridBotContract {
     // }
 
     #[payable]
-    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U256C) {
+    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U256C, new_taker_fee_rate: U256C) {
         self.assert_owner();
         require!(new_protocol_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
+        require!(new_taker_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
         self.protocol_fee_rate = new_protocol_fee_rate.as_u128();
+        self.taker_fee_rate = new_taker_fee_rate.as_u128();
     }
 
     #[payable]

@@ -4,7 +4,7 @@ use near_sdk::{env, log, near_bindgen, AccountId, PromiseResult, ext_contract, r
 // use near_sdk::__private::schemars::schema::SingleOrVec::Vec;
 use near_sdk::json_types::{I64, U64};
 use uint::hex;
-use crate::{GAS_FOR_ORACLE, GridBot, Pair, U256C};
+use crate::{GAS_FOR_AFTER_ORACLE, GridBot, Pair, U256C};
 use crate::constants::*;
 use crate::errors::*;
 use crate::*;
@@ -123,7 +123,7 @@ impl GridBotContract {
                     if let Ok(message) = near_sdk::serde_json::from_slice::<Option<Price>>(&value) {
                         if message.is_some() {
                             let price = message.unwrap();
-                            log!(format!("Success got price, token:{}, price:{}, publish_time:{}", tokens[index], price.price.0.to_string(), price.publish_time.to_string()));
+                            // log!(format!("Success got price, token:{}, price:{}, publish_time:{}", tokens[index], price.price.0.to_string(), price.publish_time.to_string()));
                             price_list.push(price);
                         } else {
                             log!(format!("Failure got price, price empty, token:{}", tokens[index]));
@@ -135,8 +135,8 @@ impl GridBotContract {
                 }
             }
         });
-        log!("publish_time base:{}, quote:{}", price_list[0].publish_time.to_string(), price_list[1].publish_time.to_string());
-        log!("price base:{}, quote:{}", price_list[0].price.0.to_string(), price_list[1].price.0.to_string());
+        // log!("publish_time base:{}, quote:{}", price_list[0].publish_time.to_string(), price_list[1].publish_time.to_string());
+        // log!("price base:{}, quote:{}", price_list[0].price.0.to_string(), price_list[1].price.0.to_string());
         return price_list;
     }
 
@@ -151,7 +151,7 @@ impl GridBotContract {
         let (promise, tokens) = self.private_create_pair_price_request(pair);
         promise.then(
             Self::ext(env::current_account_id())
-                .with_static_gas(GAS_FOR_ORACLE)
+                .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_ORACLE)
                 .get_price_for_create_bot_callback(tokens.len(), tokens, taker, slippage, entry_price, pair, grid_bot),
         );
     }
@@ -165,7 +165,7 @@ impl GridBotContract {
         let (promise, tokens) = self.private_create_pair_price_request(pair);
         promise.then(
             Self::ext(env::current_account_id())
-                .with_static_gas(GAS_FOR_ORACLE)
+                .with_static_gas(GAS_FOR_AFTER_ORACLE)
                 .get_price_for_close_bot_callback(tokens.len(), tokens, user, pair, grid_bot),
         );
     }
@@ -178,7 +178,7 @@ impl GridBotContract {
         let (promise, tokens) = self.private_create_pair_price_request(pair);
         promise.then(
             Self::ext(env::current_account_id())
-                .with_static_gas(GAS_FOR_ORACLE)
+                .with_static_gas(GAS_FOR_AFTER_ORACLE)
                 .get_price_for_trigger_bot_callback(tokens.len(), tokens, grid_bot),
         );
     }

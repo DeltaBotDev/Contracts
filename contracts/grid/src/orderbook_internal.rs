@@ -20,7 +20,7 @@ impl GridBotContract {
         GridBotContract::private_place_order(order, &mut orders, level.clone());
         self.order_map.insert(&bot_id, &bot_orders);
     }
-
+    
     pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U256C, took_buy: U256C) -> (U256C, U256C, AccountId) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
@@ -56,7 +56,7 @@ impl GridBotContract {
         self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
 
         // handle protocol fee
-        self.internal_add_protocol_fee(&mut bot, &revenue_token, protocol_fee, &pair);
+        self.internal_add_protocol_fee_from_revenue(&mut bot, &revenue_token, protocol_fee, &pair);
 
         // update bot
         self.bot_map.insert(&bot_id, &bot);
@@ -239,6 +239,11 @@ impl GridBotContract {
         let protocol_fee = revenue * U256C::from(self.protocol_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR);
         revenue -= protocol_fee;
         return (revenue_token, revenue.clone(), protocol_fee.clone());
+    }
+
+    pub fn internal_calculate_taker_fee(&self, took_buy: U256C) -> (U256C, U256C) {
+        let taker_fee = took_buy * U256C::from(self.taker_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR);
+        return (took_buy - taker_fee, taker_fee);
     }
 
     fn private_place_order(order: Order, placed_orders: &mut Vector<Order>, level: usize) {

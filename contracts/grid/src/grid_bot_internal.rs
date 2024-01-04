@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env, log, require};
+use near_sdk::{env, require};
 use uint::hex;
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
@@ -66,12 +66,17 @@ impl GridBotContract {
             emit::take_order(user, &maker, maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &taker_sell, &taker_buy);
         }
         require!(take_order.amount_sell >= took_amount_sell, INVALID_ORDER_MATCHING);
+        // calculate taker fee
+        let (real_took_amount_buy, taker_fee) = self.internal_calculate_taker_fee(took_amount_buy);
+
         // transfer taker's asset
         self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
-        self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
+        self.internal_increase_asset(&user, &(take_order.token_buy), &real_took_amount_buy);
+        // add protocol fee
+        self.internal_increase_protocol_fee(&(take_order.token_buy), &(taker_fee));
 
         // log!("Success take orders, sell token:{}, buy token:{}, sell amount:{}, buy amount:{}", take_order.token_sell, take_order.token_buy, take_order.amount_sell, take_order.amount_buy);
-        return (took_amount_sell, took_amount_buy);
+        return (took_amount_sell, real_took_amount_buy);
     }
 
     pub fn internal_close_bot(&mut self, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
@@ -146,26 +151,11 @@ impl GridBotContract {
         if quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
             return false;
         }
-        // base_price = usd amount / base amount
-        // quote_price = usd amount / quote amount
-        // oracle_pair_price = quote amount / base amount = base_price / quote_price
-        // log!("base_price: {}", base_price.price.clone().0.to_string());
-        // log!("quote_price: {}", quote_price.price.clone().0.to_string());
-        // log!("base_price big decimal: {}", BigDecimal::from(base_price.price.clone().0 as u64).to_string());
-        // log!("quote_price big decimal: {}", BigDecimal::from(quote_price.price.clone().0 as u64).to_string());
-        // log!("first big decimal: {}", (BigDecimal::from(base_price.price.clone().0 as u64) / BigDecimal::from(quote_price.price.clone().0 as u64)).to_string());
-        // log!("second big decimal: {}", (BigDecimal::from(base_price.price.clone().0 as u64) / BigDecimal::from(quote_price.price.clone().0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).to_string());
-        // log!("third big decimal: {}", (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_u128().to_string());
-        // log!("fource big decimal: {}", (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128().to_string());
         let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
 
         if entry_price.as_u128() >= oracle_pair_price {
-            log!("more entry_price: {}", ((entry_price.as_u128() - oracle_pair_price.clone()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128()).to_string());
-            log!("more entry_price: {}", entry_price.as_u128());
             return (entry_price.as_u128() - oracle_pair_price) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage as u128;
         } else {
-            log!("more oracle_pair_price: {}", ((oracle_pair_price.clone() - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128()).to_string());
-            log!("more oracle_pair_price: {}", entry_price.as_u128());
             return (oracle_pair_price - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage  as u128;
         }
     }
@@ -314,6 +304,7 @@ impl GridBotContract {
             return U256C::from(0);
         }
         self.global_balances_map.insert(&token, &U256C::from(0));
+        self.protocol_fee_map.insert(&token, &U256C::from(0));
         self.deposit_limit_map.insert(&token, &min_deposit);
         self.internal_storage_deposit(&env::current_account_id(), &token, DEFAULT_TOKEN_STORAGE_FEE);
         return U256C::from(DEFAULT_TOKEN_STORAGE_FEE);
