@@ -6,7 +6,7 @@ use near_units::parse_near;
 use workspaces::network::Testnet;
 use workspaces::{Account, Worker};
 use workspaces::result::ExecutionFinalResult;
-use grid::{GridBotContract, GridType, Order, OrderKeyInfo, TakeRequest, U256C};
+use grid::{GridBotContract, GridType, Order, OrderKeyInfo, RequestOrder, TakeRequest, U256C};
 use common::*;
 use crate::workspace_env::*;
 
@@ -169,7 +169,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     check_success(gridbot_contract.create_bot(&maker_account, pair_id.clone(), 8000, GridType::EqOffset, 0,
                                               U256C::from(10000000), U256C::from(100000000), U256C::from(2000000000),
                                               U256C::from(100000000), U256C::from(3000000000 as u128), true, 10, 15,
-                                              U256C::from(0), U256C::from(0), U256C::from(0), U256C::from(get_time_stamp() * 1000 + 36000000),
+                                              U256C::from(0), U256C::from(0), U256C::from(0), U256C::from(get_time_stamp() * 1000 + 3600000000),
                                               U256C::from(3500000000000000000 as u128)).await);
     let next_bot_id = format!("GRID:{}", "0".to_string());
     // // query storage fee
@@ -210,13 +210,13 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     // Buy ETH 100000000, 2000000000, fill base, grid_offset: 10000000, grid_buy_count: 15
     // buy one: 100000000, 2000000000 + 10000000 * 14=2140000000
     // buy two: 100000000, 2000000000 + 10000000 * 13=2130000000
-    let take_order = Order {
+    let take_order = RequestOrder {
         token_sell: eth_token_contract.get_account_id(),
         token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U256C::from(100000000 as u128),
-        amount_buy: U256C::from(2140000000 as u128),
+        amount_sell: U128::from(100000000 as u128),
+        amount_buy: U128::from(2140000000 as u128),
         fill_buy_or_sell: false,
-        filled: Default::default(),
+        filled: U128::from(0),
     };
     let maker_orders = vec![OrderKeyInfo{
         bot_id: next_bot_id.clone(),
@@ -239,7 +239,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         maker_orders,
     };
     let taker_request_str = serde_json::to_string(&(taker_request)).unwrap();
-    check_success(eth_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().as_u128(), taker_request_str).await);
+    check_success(eth_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().0, taker_request_str).await);
 
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
@@ -284,13 +284,13 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     require!(taker_eth_balance_before.0 - taker_eth_balance.0 == (100000000 as u128));
 
     // buy ETH, take the reverse order
-    let take_order = Order {
+    let take_order = RequestOrder {
         token_sell: usdc_token_contract.get_account_id(),
         token_buy: eth_token_contract.get_account_id(),
-        amount_sell: U256C::from(2150000000 as u128),
-        amount_buy: U256C::from(100000000 as u128),
+        amount_sell: U128::from(2150000000 as u128),
+        amount_buy: U128::from(100000000 as u128),
         fill_buy_or_sell: false,
-        filled: Default::default(),
+        filled: U128::from(0),
     };
     let maker_orders = vec![OrderKeyInfo{
         bot_id: next_bot_id.clone(),
@@ -302,7 +302,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         maker_orders,
     };
     let taker_request_str = serde_json::to_string(&(taker_request)).unwrap();
-    check_success(usdc_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().as_u128(), taker_request_str).await);
+    check_success(usdc_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().0, taker_request_str).await);
 
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();
@@ -348,13 +348,13 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
     require!(taker_eth_balance_second.0 - taker_eth_balance.0 == (99950000 as u128));
 
     // Partial filled
-    let take_order = Order {
+    let take_order = RequestOrder {
         token_sell: eth_token_contract.get_account_id(),
         token_buy: usdc_token_contract.get_account_id(),
-        amount_sell: U256C::from(50000000 as u128),
-        amount_buy: U256C::from(1070000000 as u128),
+        amount_sell: U128::from(50000000 as u128),
+        amount_buy: U128::from(1070000000 as u128),
         fill_buy_or_sell: false,
-        filled: Default::default(),
+        filled: U128::from(0),
     };
     let maker_orders = vec![OrderKeyInfo{
         bot_id: next_bot_id.clone(),
@@ -366,7 +366,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
         maker_orders,
     };
     let taker_request_str = serde_json::to_string(&(taker_request)).unwrap();
-    check_success(eth_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().as_u128(), taker_request_str).await);
+    check_success(eth_token_contract.ft_transfer_call(&taker_account, &gridbot_contract.get_account_id(), take_order.amount_sell.clone().0, taker_request_str).await);
 
     // query order
     let forward_order_result = gridbot_contract.query_order(next_bot_id.clone(), true, 14).await?.unwrap();

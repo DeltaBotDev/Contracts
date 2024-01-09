@@ -225,9 +225,10 @@ impl GridBotContract {
         self.internal_deposit(sender_id, token_in, amount);
         // require
         require!(token_in.clone() == take_request.take_order.token_sell, INVALID_TOKEN);
-        require!(amount.clone().0 >= take_request.take_order.amount_sell.as_u128(), INVALID_ORDER_AMOUNT);
+        require!(amount.clone().0 >= take_request.take_order.amount_sell.0, INVALID_ORDER_AMOUNT);
         // take
-        let (took_sell, took_buy) = self.internal_take_orders(sender_id, &take_request.take_order, take_request.maker_orders);
+        let taker_order = take_request.take_order.to_order();
+        let (took_sell, took_buy) = self.internal_take_orders(sender_id, &taker_order, take_request.maker_orders);
         // reduce left
         let left = amount.0 - took_sell.as_u128();
         if left.clone() > 0 {
@@ -239,7 +240,7 @@ impl GridBotContract {
         // event
         emit::deposit_return_success(sender_id, left.clone(), token_in);
         // withdraw for taker
-        self.internal_withdraw(sender_id, &(take_request.take_order.token_buy), took_buy);
+        self.internal_withdraw(sender_id, &(taker_order.token_buy), took_buy);
         return U128::from(left);
     }
 

@@ -32,14 +32,14 @@ impl GridBotContract {
         return (order.clone(), true);
     }
 
-    pub fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Vec<Order> {
+    pub fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Vec<RequestOrder> {
         require!(bot_ids.len() == forward_or_reverses.len(), INVALID_PARAM);
         require!(levels.len() == forward_or_reverses.len(), INVALID_PARAM);
 
-        let mut orders: Vec<Order> = Vec::with_capacity(bot_ids.len());
+        let mut orders: Vec<RequestOrder> = Vec::with_capacity(bot_ids.len());
         for (index, bot_id) in bot_ids.iter().enumerate() {
             let (order, _) = self.query_order(bot_id.clone(), forward_or_reverses[index.clone()].clone(), levels[index].clone());
-            orders.push(order);
+            orders.push(order.to_request_order());
         }
         return orders;
     }

@@ -20,7 +20,7 @@ impl GridBotContract {
         GridBotContract::private_place_order(order, &mut orders, level.clone());
         self.order_map.insert(&bot_id, &bot_orders);
     }
-    
+
     pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U256C, took_buy: U256C) -> (U256C, U256C, AccountId) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();

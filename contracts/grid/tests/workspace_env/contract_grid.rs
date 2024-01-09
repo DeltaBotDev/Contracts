@@ -1,9 +1,10 @@
 use near_sdk::AccountId;
 use near_units::parse_near;
+use near_sdk::json_types::U128;
 use serde_json::json;
 use workspaces::{Account, Contract};
 use workspaces::result::ExecutionFinalResult;
-use grid::{GridBot, GridType, Order, OrderKeyInfo, OrderResult, U256C};
+use grid::{GridBot, GridType, Order, RequestOrder, OrderKeyInfo, OrderResult, U256C};
 use crate::*;
 
 pub struct GridBotHelper(pub Contract);
@@ -68,23 +69,24 @@ impl GridBotHelper {
         caller
             .call(self.0.id(), "create_bot")
             .args_json(json!({
+                "name": "testname",
                 "pair_id": pair_id,
                 "slippage": slippage,
                 "grid_type": grid_type,
                 "grid_rate": grid_rate,
-                "grid_offset": grid_offset,
-                "first_base_amount": first_base_amount,
-                "first_quote_amount": first_quote_amount,
-                "last_base_amount": last_base_amount,
-                "last_quote_amount": last_quote_amount,
+                "grid_offset": U128::from(grid_offset.as_u128()),
+                "first_base_amount": U128::from(first_base_amount.as_u128()),
+                "first_quote_amount": U128::from(first_quote_amount.as_u128()),
+                "last_base_amount": U128::from(last_base_amount.as_u128()),
+                "last_quote_amount": U128::from(last_quote_amount.as_u128()),
                 "fill_base_or_quote": fill_base_or_quote,
                 "grid_sell_count": grid_sell_count,
                 "grid_buy_count": grid_buy_count,
-                "trigger_price": trigger_price,
-                "take_profit_price": take_profit_price,
-                "stop_loss_price": stop_loss_price,
-                "valid_until_time": valid_until_time,
-                "entry_price": entry_price,
+                "trigger_price": U128::from(trigger_price.as_u128()),
+                "take_profit_price": U128::from(take_profit_price.as_u128()),
+                "stop_loss_price": U128::from(stop_loss_price.as_u128()),
+                "valid_until_time": U128::from(valid_until_time.as_u128()),
+                "entry_price": U128::from(entry_price.as_u128()),
             }))
             .gas(300_000_000_000_000)
             .deposit(10_000_000_000_000_000_000_000)
@@ -259,7 +261,7 @@ impl GridBotHelper {
             .json::<Option<OrderResult>>()
     }
 
-    pub async fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Result<Option<Vec<Order>>, workspaces::error::Error> {
+    pub async fn query_orders(&self, bot_ids: Vec<String>, forward_or_reverses: Vec<bool>, levels: Vec<usize>) -> Result<Option<Vec<RequestOrder>>, workspaces::error::Error> {
         log!("start query_orders");
         self.0
             .call("query_orders")
@@ -270,7 +272,7 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<Vec<Order>>>()
+            .json::<Option<Vec<RequestOrder>>>()
     }
 
     pub async fn query_bot(&self, bot_id: String) -> Result<Option<GridBot>, workspaces::error::Error> {

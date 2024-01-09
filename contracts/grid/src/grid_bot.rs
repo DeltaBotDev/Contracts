@@ -1,5 +1,6 @@
 use crate::*;
 use near_sdk::{assert_one_yocto, near_bindgen, require};
+use near_sdk::json_types::U128;
 use crate::entity::{GridType};
 use crate::events::emit;
 
@@ -7,23 +8,33 @@ use crate::events::emit;
 impl GridBotContract {
 
     #[payable]
-    pub fn create_bot(&mut self, pair_id: String, slippage: u16, grid_type: GridType,
-                      grid_rate: u16, grid_offset: U256C, first_base_amount: U256C, first_quote_amount: U256C,
-                      last_base_amount: U256C, last_quote_amount: U256C, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
-                      trigger_price: U256C, take_profit_price: U256C, stop_loss_price: U256C, valid_until_time: U256C,
-                      entry_price: U256C) {
+    pub fn create_bot(&mut self, name: String, pair_id: String, slippage: u16, grid_type: GridType,
+                      grid_rate: u16, grid_offset: U128, first_base_amount: U128, first_quote_amount: U128,
+                      last_base_amount: U128, last_quote_amount: U128, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
+                      trigger_price: U128, take_profit_price: U128, stop_loss_price: U128, valid_until_time: U128,
+                      entry_price: U128) {
+        let grid_offset_256 = U256C::from(grid_offset.0);
+        let first_base_amount_256 = U256C::from(first_base_amount.0);
+        let first_quote_amount_256 = U256C::from(first_quote_amount.0);
+        let last_base_amount_256 = U256C::from(last_base_amount.0);
+        let last_quote_amount_256 = U256C::from(last_quote_amount.0);
+        let trigger_price_256 = U256C::from(trigger_price.0);
+        let take_profit_price_256 = U256C::from(take_profit_price.0);
+        let stop_loss_price_256 = U256C::from(stop_loss_price.0);
+        let valid_until_time_256 = U256C::from(valid_until_time.0);
+        let entry_price_256 = U256C::from(entry_price.0);
         require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
         // amount must u128, u128 * u128 <= u256, so, it's ok
-        require!(last_quote_amount * first_base_amount > first_quote_amount * last_base_amount , INVALID_FIRST_OR_LAST_AMOUNT);
+        require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
 
         // calculate all assets
-        let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount.clone(), last_base_amount.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
-                                                       grid_type.clone(), grid_rate.clone(), grid_offset.clone(), fill_base_or_quote.clone());
+        let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount_256.clone(), last_base_amount_256.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
+                                                       grid_type.clone(), grid_rate.clone(), grid_offset_256.clone(), fill_base_or_quote.clone());
         // check balance
         require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
         require!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
@@ -32,10 +43,11 @@ impl GridBotContract {
         let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
 
         // create bot
-        let mut new_grid_bot = GridBot {active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,
-            grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset,
-            first_base_amount, first_quote_amount, last_base_amount, last_quote_amount, fill_base_or_quote,
-            trigger_price, trigger_price_above_or_below: false, take_profit_price, stop_loss_price, valid_until_time,
+        let mut new_grid_bot = GridBot {name, active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,
+            grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset: grid_offset_256,
+            first_base_amount: first_base_amount_256, first_quote_amount: first_quote_amount_256, last_base_amount: last_base_amount_256,
+            last_quote_amount: last_quote_amount_256, fill_base_or_quote, trigger_price: trigger_price_256, trigger_price_above_or_below: false,
+            take_profit_price: take_profit_price_256, stop_loss_price: stop_loss_price_256, valid_until_time: valid_until_time_256,
             total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0)
         };
 
@@ -43,14 +55,14 @@ impl GridBotContract {
         // self.storage_fee += env::attached_deposit();
 
         // request token price
-        self.get_price_for_create_bot(&pair, &user, slippage, &entry_price, &mut new_grid_bot);
+        self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot);
     }
 
     #[payable]
-    pub fn take_orders(&mut self, take_order: Order, maker_orders: Vec<OrderKeyInfo>) {
+    pub fn take_orders(&mut self, take_order: RequestOrder, maker_orders: Vec<OrderKeyInfo>) {
         assert_one_yocto();
         require!(self.market_user_map.contains_key(&(env::predecessor_account_id())), INVALID_USER);
-        self.internal_take_orders(&(env::predecessor_account_id()), &take_order, maker_orders);
+        self.internal_take_orders(&(env::predecessor_account_id()), &take_order.to_order(), maker_orders);
     }
 
     #[payable]

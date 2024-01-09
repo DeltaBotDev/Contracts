@@ -4,6 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 use crate::utils::{U256C};
 use near_sdk::BorshStorageKey;
+use near_sdk::json_types::U128;
 use crate::oracle::PriceIdentifier;
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -24,6 +25,7 @@ pub enum GridType {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct GridBot {
+    pub name: String,
     pub active: bool,
     pub user: AccountId,
     pub bot_id: String,
@@ -58,6 +60,7 @@ pub struct GridBot {
 impl Clone for GridBot {
     fn clone(&self) -> Self {
         GridBot {
+            name: self.name.clone(),
             active: self.active.clone(),
             user: self.user.clone(),
             bot_id: self.bot_id.clone(),
@@ -85,7 +88,6 @@ impl Clone for GridBot {
     }
 }
 
-
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Order {
@@ -111,6 +113,53 @@ impl Default for Order {
 impl Clone for Order {
     fn clone(&self) -> Self {
         Order {
+            token_sell: self.token_sell.clone(),
+            token_buy: self.token_buy.clone(),
+            amount_sell: self.amount_sell.clone(),
+            amount_buy: self.amount_buy.clone(),
+            fill_buy_or_sell: self.fill_buy_or_sell.clone(),
+            filled: self.filled.clone(),
+        }
+    }
+}
+
+impl Order {
+    pub fn to_request_order(&self) -> RequestOrder {
+        RequestOrder {
+            token_sell: self.token_sell.clone(),
+            token_buy: self.token_buy.clone(),
+            amount_sell: U128::from(self.amount_sell.clone().as_u128()),
+            amount_buy: U128::from(self.amount_buy.clone().as_u128()),
+            fill_buy_or_sell: self.fill_buy_or_sell.clone(),
+            filled: U128::from(self.filled.clone().as_u128()),
+        }
+    }
+}
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RequestOrder {
+    pub token_sell: AccountId,
+    pub token_buy: AccountId,
+    pub amount_sell: U128,
+    pub amount_buy: U128,
+    pub fill_buy_or_sell: bool,
+    pub filled: U128,
+}
+impl RequestOrder {
+    pub fn to_order(&self) -> Order {
+        Order {
+            token_sell: self.token_sell.clone(),
+            token_buy: self.token_buy.clone(),
+            amount_sell: U256C::from(self.amount_sell.clone().0),
+            amount_buy: U256C::from(self.amount_buy.clone().0),
+            fill_buy_or_sell: self.fill_buy_or_sell.clone(),
+            filled: U256C::from(self.filled.clone().0),
+        }
+    }
+}
+impl Clone for RequestOrder {
+    fn clone(&self) -> Self {
+        RequestOrder {
             token_sell: self.token_sell.clone(),
             token_buy: self.token_buy.clone(),
             amount_sell: self.amount_sell.clone(),
@@ -185,6 +234,6 @@ pub enum StorageKey {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct TakeRequest {
-    pub take_order: Order,
+    pub take_order: RequestOrder,
     pub maker_orders: Vec<OrderKeyInfo>
 }
