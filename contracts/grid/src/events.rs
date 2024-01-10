@@ -43,6 +43,10 @@ pub mod emit {
         pub took_sell: Balance,
         #[serde(with = "u128_dec_format")]
         pub took_buy: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub taker_fee: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub maker_fee: Balance,
     }
 
     #[derive(Serialize)]
@@ -54,6 +58,12 @@ pub mod emit {
         pub revenue_token: &'a AccountId,
         #[serde(with = "u128_dec_format")]
         pub revenue: Balance,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct TriggerBot<'a> {
+        pub bot_id: String,
     }
 
     fn log_event<T: Serialize>(event: &str, data: T) {
@@ -208,7 +218,7 @@ pub mod emit {
         );
     }
 
-    pub fn take_order(taker: &AccountId, maker: &AccountId, maker_bot_id: String, maker_forward_or_reverse: bool, maker_level: usize, took_sell: &U256C, took_buy: &U256C) {
+    pub fn take_order(taker: &AccountId, maker: &AccountId, maker_bot_id: String, maker_forward_or_reverse: bool, maker_level: usize, took_sell: &U256C, took_buy: &U256C, maker_fee: &U256C, taker_fee: &U256C) {
         log_event(
             "take_order",
             TakeOrder {
@@ -219,6 +229,8 @@ pub mod emit {
                 maker_level: maker_level as u128,
                 took_sell: took_sell.as_u128(),
                 took_buy: took_buy.as_u128(),
+                maker_fee: maker_fee.as_u128(),
+                taker_fee: taker_fee.as_u128(),
             },
         );
     }
@@ -252,6 +264,15 @@ pub mod emit {
                 user,
                 revenue_token,
                 revenue: revenue.as_u128(),
+            },
+        );
+    }
+
+    pub fn trigger_bot(bot_id: String) {
+        log_event(
+            "trigger_bot",
+            TriggerBot {
+                bot_id,
             },
         );
     }

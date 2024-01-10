@@ -21,7 +21,7 @@ impl GridBotContract {
         self.order_map.insert(&bot_id, &bot_orders);
     }
 
-    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U256C, took_buy: U256C) -> (U256C, U256C, AccountId) {
+    pub fn internal_take_order(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, taker_order: &Order, took_sell: U256C, took_buy: U256C) -> (U256C, U256C, AccountId, U256C) {
         let bot = self.bot_map.get(&bot_id.clone()).unwrap().clone();
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         let (maker_order, in_orderbook) = self.query_order(bot_id.clone(), forward_or_reverse, level);
@@ -62,7 +62,7 @@ impl GridBotContract {
         self.bot_map.insert(&bot_id, &bot);
 
         // log!("Success take order, maker bot id:{}, forward_or_reserve:{}, level:{}, took sell:{}, took buy:{}", bot_id, forward_or_reverse, level, taker_sell, taker_buy);
-        return (taker_sell, taker_buy, bot.user.clone());
+        return (taker_sell, taker_buy, bot.user.clone(), protocol_fee);
     }
 
     pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U256C) -> Order {

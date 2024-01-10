@@ -19,7 +19,7 @@ impl GridBotContract {
                                slippage: u16,
                                entry_price: &U256C,
                                pair: &Pair,
-                               grid_bot: &mut GridBot,) {
+                               grid_bot: &mut GridBot) {
         require!(self.internal_check_oracle_price(*entry_price, base_price, quote_price, slippage), INVALID_PRICE);
         // calculate all assets again
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(grid_bot.first_quote_amount.clone(), grid_bot.last_base_amount.clone(), grid_bot.grid_sell_count.clone(), grid_bot.grid_buy_count.clone(),
@@ -58,25 +58,28 @@ impl GridBotContract {
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
         let mut took_amount_sell = U256C::from(0);
         let mut took_amount_buy = U256C::from(0);
+        let mut total_took_fee = U256C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
-            let (taker_sell, taker_buy, maker) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            let (taker_sell, taker_buy, maker, maker_fee) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            // calculate taker fee
+            let (real_taker_buy, taker_fee) = self.internal_calculate_taker_fee(taker_buy);
             took_amount_sell += taker_sell;
-            took_amount_buy += taker_buy;
-            emit::take_order(user, &maker, maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &taker_sell, &taker_buy);
+            took_amount_buy += real_taker_buy;
+            total_took_fee += taker_fee;
+            // send event
+            emit::take_order(user, &maker, maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &taker_sell, &taker_buy, &maker_fee, &taker_fee);
         }
         require!(take_order.amount_sell >= took_amount_sell, INVALID_ORDER_MATCHING);
-        // calculate taker fee
-        let (real_took_amount_buy, taker_fee) = self.internal_calculate_taker_fee(took_amount_buy);
 
         // transfer taker's asset
         self.internal_reduce_asset(&user, &(take_order.token_sell), &took_amount_sell);
-        self.internal_increase_asset(&user, &(take_order.token_buy), &real_took_amount_buy);
+        self.internal_increase_asset(&user, &(take_order.token_buy), &took_amount_buy);
         // add protocol fee
-        self.internal_increase_protocol_fee(&(take_order.token_buy), &(taker_fee));
+        self.internal_increase_protocol_fee(&(take_order.token_buy), &(total_took_fee));
 
         // log!("Success take orders, sell token:{}, buy token:{}, sell amount:{}, buy amount:{}", take_order.token_sell, take_order.token_buy, take_order.amount_sell, take_order.amount_buy);
-        return (took_amount_sell, real_took_amount_buy);
+        return (took_amount_sell, took_amount_buy);
     }
 
     pub fn internal_close_bot(&mut self, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
@@ -113,10 +116,12 @@ impl GridBotContract {
             // self.bot_map.get_mut(&bot_id).unwrap().active = true;
             bot.active = true;
             self.bot_map.insert(&bot_id, &bot);
+            emit::trigger_bot(bot_id.clone());
         } else if !bot.trigger_price_above_or_below.clone() && bot.trigger_price.clone().as_u128() >= oracle_pair_price {
             // self.bot_map.get_mut(&bot_id).unwrap().active = true;
             bot.active = true;
             self.bot_map.insert(&bot_id, &bot);
+            emit::trigger_bot(bot_id.clone());
         } else {
             env::panic_str(CAN_NOT_TRIGGER);
         }
