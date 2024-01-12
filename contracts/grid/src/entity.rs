@@ -55,6 +55,7 @@ pub struct GridBot {
     pub total_quote_amount: U256C,
     pub total_base_amount: U256C,
     pub revenue: U256C,
+    pub total_revenue: U256C,
 }
 
 impl Clone for GridBot {
@@ -84,6 +85,7 @@ impl Clone for GridBot {
             total_quote_amount: self.total_quote_amount.clone(),
             total_base_amount: self.total_base_amount.clone(),
             revenue: self.revenue.clone(),
+            total_revenue: self.total_revenue.clone(),
         }
     }
 }

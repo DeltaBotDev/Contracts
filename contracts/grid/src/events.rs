@@ -66,6 +66,12 @@ pub mod emit {
         pub taker_fee: Balance,
         #[serde(with = "u128_dec_format")]
         pub maker_fee: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub current_revenue: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub maker_left_revenue: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub maker_total_revenue: Balance,
     }
 
     #[derive(Serialize)]
@@ -237,7 +243,7 @@ pub mod emit {
         );
     }
 
-    pub fn take_order(taker: &AccountId, maker: &AccountId, maker_bot_id: String, maker_forward_or_reverse: bool, maker_level: usize, took_sell: &U256C, took_buy: &U256C, maker_fee: &U256C, taker_fee: &U256C) {
+    pub fn take_order(taker: &AccountId, maker: &AccountId, maker_bot_id: String, maker_forward_or_reverse: bool, maker_level: usize, took_sell: &U256C, took_buy: &U256C, maker_fee: &U256C, taker_fee: &U256C, current_revenue: &U256C, maker_left_revenue: &U256C, maker_total_revenue: &U256C) {
         log_event(
             "take_order",
             TakeOrder {
@@ -250,6 +256,9 @@ pub mod emit {
                 took_buy: took_buy.as_u128(),
                 maker_fee: maker_fee.as_u128(),
                 taker_fee: taker_fee.as_u128(),
+                current_revenue: current_revenue.as_u128(),
+                maker_left_revenue: maker_left_revenue.as_u128(),
+                maker_total_revenue: maker_total_revenue.as_u128(),
             },
         );
     }

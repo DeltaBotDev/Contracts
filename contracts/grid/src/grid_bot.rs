@@ -48,7 +48,7 @@ impl GridBotContract {
             first_base_amount: first_base_amount_256, first_quote_amount: first_quote_amount_256, last_base_amount: last_base_amount_256,
             last_quote_amount: last_quote_amount_256, fill_base_or_quote, trigger_price: trigger_price_256, trigger_price_above_or_below: false,
             take_profit_price: take_profit_price_256, stop_loss_price: stop_loss_price_256, valid_until_time: valid_until_time_256,
-            total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0)
+            total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0), total_revenue: U256C::from(0)
         };
 
         // // record storage fee
