@@ -45,7 +45,8 @@ pub mod emit {
         #[serde(with = "u128_dec_format")]
         pub amount_buy: Balance,
         pub fill_buy_or_sell: bool,
-        pub filled: U256C,
+        #[serde(with = "u128_dec_format")]
+        pub filled: Balance,
     }
 
     #[derive(Serialize)]
@@ -309,7 +310,7 @@ pub mod emit {
                 amount_sell: order.amount_sell.as_u128(),
                 amount_buy: order.amount_buy.as_u128(),
                 fill_buy_or_sell: order.fill_buy_or_sell.clone(),
-                filled: order.filled.clone(),
+                filled: order.filled.as_u128(),
             },
         );
     }
