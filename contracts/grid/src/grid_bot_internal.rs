@@ -20,7 +20,7 @@ impl GridBotContract {
                                entry_price: &U256C,
                                pair: &Pair,
                                grid_bot: &mut GridBot) {
-        require!(self.internal_check_oracle_price(*entry_price, base_price, quote_price, slippage), INVALID_PRICE);
+        require!(self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage), INVALID_PRICE);
         // calculate all assets again
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(grid_bot.first_quote_amount.clone(), grid_bot.last_base_amount.clone(), grid_bot.grid_sell_count.clone(), grid_bot.grid_buy_count.clone(),
                                                                                                   grid_bot.grid_type.clone(), grid_bot.grid_rate.clone(), grid_bot.grid_offset.clone(), grid_bot.fill_base_or_quote.clone());
@@ -47,7 +47,7 @@ impl GridBotContract {
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
         // log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
-        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone())
+        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string())
     }
 
     pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) -> (U256C, U256C) {

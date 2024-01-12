@@ -21,6 +21,8 @@ pub mod emit {
     struct CreateBot<'a> {
         pub account_id: &'a AccountId,
         pub bot_id: String,
+        pub base_price: String,
+        pub quote_price: String,
     }
 
     #[derive(Serialize)]
@@ -251,12 +253,14 @@ pub mod emit {
         );
     }
 
-    pub fn create_bot(account_id: &AccountId, bot_id: String) {
+    pub fn create_bot(account_id: &AccountId, bot_id: String, base_price: String, quote_price: String) {
         log_event(
             "create_bot",
             CreateBot {
                 account_id: &account_id,
                 bot_id,
+                base_price,
+                quote_price,
             },
         );
     }
