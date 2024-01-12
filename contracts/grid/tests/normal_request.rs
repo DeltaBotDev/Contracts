@@ -171,7 +171,7 @@ async fn create_bot() -> Result<(), workspaces::error::Error> {
                                               U256C::from(100000000), U256C::from(3000000000 as u128), true, 10, 15,
                                               U256C::from(0), U256C::from(0), U256C::from(0), U256C::from(get_time_stamp() * 1000 + 3600000000),
                                               U256C::from(3500000000000000000 as u128)).await);
-    let next_bot_id = format!("GRID:{}", "0".to_string());
+    let next_bot_id = format!("GRID:{}", "1".to_string());
     // // query storage fee
     // let storage_fee = gridbot_contract.query_storage_fee().await.unwrap();
     // println!("storage_fee:{}", storage_fee.to_string());

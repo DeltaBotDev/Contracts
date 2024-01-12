@@ -77,7 +77,7 @@ impl GridBotContract {
             taker_fee_rate: DEFAULT_TAKER_FEE,
             bot_map: LookupMap::new(b"bots".to_vec()),
             order_map: LookupMap::new(b"orders".to_vec()),
-            next_bot_id: 0,
+            next_bot_id: 1,
             // oracle_price_map: LookupMap::new(b"oracle".to_vec()),
             pair_map: LookupMap::new(b"pairs".to_vec()),
             protocol_fee_map: LookupMap::new(b"protocol".to_vec()),
