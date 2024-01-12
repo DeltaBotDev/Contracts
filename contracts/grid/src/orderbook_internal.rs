@@ -3,6 +3,7 @@ use crate::*;
 use std::ops::{Div};
 use crate::big_decimal::{BigDecimal};
 use crate::entity::GridType::EqOffset;
+use crate::events::emit;
 
 impl GridBotContract {
     pub fn internal_place_order(&mut self, bot_id: String, order: Order, forward_or_reverse: bool, level: usize) {
@@ -17,7 +18,7 @@ impl GridBotContract {
         } else {
             bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
         };
-        GridBotContract::private_place_order(order, &mut orders, level.clone());
+        GridBotContract::private_place_order(bot_id.clone(), forward_or_reverse.clone(), order, &mut orders, level.clone());
         self.order_map.insert(&bot_id, &bot_orders);
     }
 
@@ -246,17 +247,19 @@ impl GridBotContract {
         return (took_buy - taker_fee, taker_fee);
     }
 
-    fn private_place_order(order: Order, placed_orders: &mut Vector<Order>, level: usize) {
+    fn private_place_order(bot_id: String, forward_or_reverse: bool, order: Order, placed_orders: &mut Vector<Order>, level: usize) {
         // let placed_order = &mut placed_orders[level.clone()];
         let placed_order = &mut placed_orders.get(level.clone() as u64).unwrap();
         if GridBotContract::internal_order_is_empty(placed_order) {
             // placed_orders[level.clone()] = order;
+            emit::order_update(bot_id, forward_or_reverse, level, &order);
             placed_orders.replace(level.clone() as u64, &order);
             return;
         }
         // merge order
         placed_order.amount_sell += order.amount_sell;
         placed_order.amount_buy += order.amount_buy;
+        emit::order_update(bot_id, forward_or_reverse, level, &placed_order);
         placed_orders.replace(level.clone() as u64, placed_order);
     }
 

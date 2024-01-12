@@ -32,6 +32,22 @@ pub mod emit {
 
     #[derive(Serialize)]
     #[serde(crate = "near_sdk::serde")]
+    struct OrderUpdate<'a> {
+        pub bot_id: String,
+        pub forward_or_reverse: bool,
+        pub level: usize,
+        pub token_sell: &'a AccountId,
+        pub token_buy: &'a AccountId,
+        #[serde(with = "u128_dec_format")]
+        pub amount_sell: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub amount_buy: Balance,
+        pub fill_buy_or_sell: bool,
+        pub filled: U256C,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
     struct TakeOrder<'a> {
         pub taker: &'a AccountId,
         pub maker: &'a AccountId,
@@ -62,7 +78,7 @@ pub mod emit {
 
     #[derive(Serialize)]
     #[serde(crate = "near_sdk::serde")]
-    struct TriggerBot<'a> {
+    struct TriggerBot {
         pub bot_id: String,
     }
 
@@ -273,6 +289,23 @@ pub mod emit {
             "trigger_bot",
             TriggerBot {
                 bot_id,
+            },
+        );
+    }
+
+    pub fn order_update(bot_id: String, forward_or_reverse: bool, level: usize, order: &Order) {
+        log_event(
+            "order_update",
+            OrderUpdate {
+                bot_id,
+                forward_or_reverse,
+                level,
+                token_sell: &order.token_sell,
+                token_buy: &order.token_sell,
+                amount_sell: order.amount_sell.as_u128(),
+                amount_buy: order.amount_buy.as_u128(),
+                fill_buy_or_sell: order.fill_buy_or_sell.clone(),
+                filled: order.filled.clone(),
             },
         );
     }
