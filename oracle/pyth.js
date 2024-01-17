@@ -52,22 +52,6 @@ async function updatePriceFeeds() {
         )
         console.log("Update Price Feeds Result: ", result);
         await sleep(5000);
-
-        // const priceFeed1 = await account.viewFunction("pyth-oracle.testnet", "get_price", {
-        //     price_identifier: "1fc18861232290221461220bd4e2acd1dcdfbc89c84092c93c18bdc7756c1588",
-        // });
-        // console.log("after viewFunction")
-        // // 1fc18861232290221461220bd4e2acd1dcdfbc89c84092c93c18bdc7756c1588
-        // // 1fc18861232290221461220bd4e2acd1dcdfbc89c84092c93c18bdc7756c1588
-        // console.log("Price Feed Data: ", priceFeed1);
-        //
-        // const priceFeed = await account.viewFunction("pyth-oracle.testnet", "get_price", {
-        //     price_identifier: "27e867f0f4f61076456d1a73b14c7edc1cf5cef4f4d6193a33424288f11bd0f4",
-        // });
-        // console.log("after viewFunction")
-        // // 27e867f0f4f61076456d1a73b14c7edc1cf5cef4f4d6193a33424288f11bd0f4
-        // // 27e867f0f4f61076456d1a73b14c7edc1cf5cef4f4d6193a33424288f11bd0f4
-        // console.log("Price Feed Data: ", priceFeed);
     }
 }
 

@@ -299,7 +299,7 @@ impl GridBotHelper {
             .json::<Option<Vec<GridBot>>>()
     }
 
-    pub async fn query_protocol_fee(&self, token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {
+    pub async fn query_protocol_fee(&self, token: AccountId) -> Result<U256C, workspaces::error::Error> {
         log!("start query_protocol_fee");
         self.0
             .call("query_protocol_fee")
@@ -308,7 +308,7 @@ impl GridBotHelper {
             }))
             .view()
             .await?
-            .json::<Option<U256C>>()
+            .json::<U256C>()
     }
 
     pub async fn query_global_balance(&self, token: AccountId) -> Result<Option<U256C>, workspaces::error::Error> {

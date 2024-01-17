@@ -18,7 +18,7 @@ impl GridBotContract {
         } else {
             bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
         };
-        GridBotContract::private_place_order(bot_id.clone(), forward_or_reverse.clone(), order, &mut orders, level.clone());
+        GridBotContract::private_place_order(order, &mut orders, level.clone());
         self.order_map.insert(&bot_id, &bot_orders);
     }
 
@@ -38,10 +38,12 @@ impl GridBotContract {
         }
         // update filled
         let maker_order = self.internal_update_order_filled(bot_id.clone(), forward_or_reverse.clone(), level.clone(), current_filled.clone());
+        emit::order_update(bot_id.clone(), forward_or_reverse.clone(), level.clone(), &maker_order);
 
         // place opposite order
         let opposite_order = GridBotContract::internal_get_opposite_order(&made_order, bot.clone(), forward_or_reverse.clone(), level.clone());
         self.internal_place_order(bot_id.clone(), opposite_order.clone(), !forward_or_reverse.clone(), level.clone());
+        emit::order_update(bot_id.clone(), !forward_or_reverse.clone(), level.clone(), &opposite_order);
 
         // calculate bot's revenue
         let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.clone());
@@ -248,19 +250,17 @@ impl GridBotContract {
         return (took_buy - taker_fee, taker_fee);
     }
 
-    fn private_place_order(bot_id: String, forward_or_reverse: bool, order: Order, placed_orders: &mut Vector<Order>, level: usize) {
+    fn private_place_order(order: Order, placed_orders: &mut Vector<Order>, level: usize) {
         // let placed_order = &mut placed_orders[level.clone()];
         let placed_order = &mut placed_orders.get(level.clone() as u64).unwrap();
         if GridBotContract::internal_order_is_empty(placed_order) {
             // placed_orders[level.clone()] = order;
-            emit::order_update(bot_id, forward_or_reverse, level, &order);
             placed_orders.replace(level.clone() as u64, &order);
             return;
         }
         // merge order
         placed_order.amount_sell += order.amount_sell;
         placed_order.amount_buy += order.amount_buy;
-        emit::order_update(bot_id, forward_or_reverse, level, &placed_order);
         placed_orders.replace(level.clone() as u64, placed_order);
     }
 
