@@ -27,7 +27,10 @@ impl GridBotContract {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
         // amount must u128, u128 * u128 <= u256, so, it's ok
-        require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
+        if grid_sell_count > 0 && grid_buy_count > 0 {
+            require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
+        }
+
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
@@ -118,12 +121,12 @@ impl GridBotContract {
     //################################################## Owner #####################################
 
     #[payable]
-    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId, amount: U256C) {
+    pub fn withdraw_protocol_fee(&mut self, token: AccountId, to_user: AccountId, amount: U128) {
         self.assert_owner();
         require!(self.protocol_fee_map.contains_key(&token), INVALID_TOKEN);
         let protocol_fee = self.internal_get_protocol_fee(&token);
-        require!(protocol_fee >= amount, INVALID_AMOUNT);
-        self.internal_withdraw_protocol_fee(&to_user, &token, amount);
+        require!(protocol_fee.as_u128() >= amount.0, INVALID_AMOUNT);
+        self.internal_withdraw_protocol_fee(&to_user, &token, U256C::from(amount.0));
     }
 
     // #[payable]
@@ -148,12 +151,12 @@ impl GridBotContract {
     // }
 
     #[payable]
-    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U256C, new_taker_fee_rate: U256C) {
+    pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U128, new_taker_fee_rate: U128) {
         self.assert_owner();
-        require!(new_protocol_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
-        require!(new_taker_fee_rate.as_u128() <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
-        self.protocol_fee_rate = new_protocol_fee_rate.as_u128();
-        self.taker_fee_rate = new_taker_fee_rate.as_u128();
+        require!(new_protocol_fee_rate.0 <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
+        require!(new_taker_fee_rate.0 <= MAX_PROTOCOL_FEE, INVALID_PROTOCOL_FEE);
+        self.protocol_fee_rate = new_protocol_fee_rate.0;
+        self.taker_fee_rate = new_taker_fee_rate.0;
     }
 
     #[payable]
@@ -177,7 +180,7 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U256C, quote_min_deposit: U256C, base_oracle_id: String, quote_oracle_id: String) {
+    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U128, quote_min_deposit: U128, base_oracle_id: String, quote_oracle_id: String) {
         require!(env::attached_deposit() == DEFAULT_TOKEN_STORAGE_FEE * 2, LESS_TOKEN_STORAGE_FEE);
         require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
         require!(base_token != quote_token, INVALID_TOKEN);
@@ -195,16 +198,16 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U256C) {
+    pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U128) {
         self.assert_owner();
-        self.deposit_limit_map.insert(&token, &min_deposit);
+        self.deposit_limit_map.insert(&token, &U256C::from(min_deposit.0));
     }
 
     #[payable]
-    pub fn storage_deposit(&mut self, token: AccountId, storage_fee: U256C) {
+    pub fn storage_deposit(&mut self, token: AccountId, storage_fee: U128) {
         require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
-        require!(env::attached_deposit() == storage_fee.as_u128(), LESS_TOKEN_STORAGE_FEE);
-        self.internal_storage_deposit(&env::current_account_id(), &token, storage_fee.as_u128());
+        require!(env::attached_deposit() == storage_fee.0, LESS_TOKEN_STORAGE_FEE);
+        self.internal_storage_deposit(&env::current_account_id(), &token, storage_fee.0);
     }
 
     #[payable]

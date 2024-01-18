@@ -1,6 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
 use near_sdk::{env, require};
+use near_sdk::json_types::U128;
 use uint::hex;
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
@@ -304,13 +305,13 @@ impl GridBotContract {
         return outer_vector;
     }
 
-    pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U256C) -> U256C {
+    pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U128) -> U256C {
         if self.global_balances_map.contains_key(&token) {
             return U256C::from(0);
         }
         self.global_balances_map.insert(&token, &U256C::from(0));
         self.protocol_fee_map.insert(&token, &U256C::from(0));
-        self.deposit_limit_map.insert(&token, &min_deposit);
+        self.deposit_limit_map.insert(&token, &U256C::from(min_deposit.0));
         self.internal_storage_deposit(&env::current_account_id(), &token, DEFAULT_TOKEN_STORAGE_FEE);
         return U256C::from(DEFAULT_TOKEN_STORAGE_FEE);
     }
