@@ -246,6 +246,9 @@ impl GridBotContract {
 
     //################################## Withdraw ##################################################
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+        if amount.as_u128() == 0 {
+            return;
+        }
         // reduce user asset
         self.internal_reduce_asset(user, token, &amount);
         // start transfer
@@ -254,6 +257,9 @@ impl GridBotContract {
     }
 
     pub fn internal_withdraw_protocol_fee(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+        if amount.as_u128() == 0 {
+            return;
+        }
         // reduce protocol
         self.internal_reduce_protocol_fee(token, &(amount.clone()));
         // start transfer
