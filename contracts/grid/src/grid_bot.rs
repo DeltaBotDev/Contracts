@@ -27,9 +27,8 @@ impl GridBotContract {
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
         // amount must u128, u128 * u128 <= u256, so, it's ok
-        if grid_sell_count > 0 && grid_buy_count > 0 {
-            require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
-        }
+        self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
+                                       last_base_amount_256, last_quote_amount_256);
 
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();

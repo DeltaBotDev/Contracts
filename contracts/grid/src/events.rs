@@ -23,6 +23,8 @@ pub mod emit {
         pub bot_id: String,
         pub base_price: String,
         pub quote_price: String,
+        pub base_expo: String,
+        pub quote_expo: String,
     }
 
     #[derive(Serialize)]
@@ -30,6 +32,15 @@ pub mod emit {
     struct CloseBot<'a> {
         pub account_id: &'a AccountId,
         pub bot_id: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct CloseBotPrice {
+        pub base_price: String,
+        pub quote_price: String,
+        pub base_expo: String,
+        pub quote_expo: String,
     }
 
     #[derive(Serialize)]
@@ -89,6 +100,10 @@ pub mod emit {
     #[serde(crate = "near_sdk::serde")]
     struct TriggerBot {
         pub bot_id: String,
+        pub base_price: String,
+        pub quote_price: String,
+        pub base_expo: String,
+        pub quote_expo: String,
     }
 
     fn log_event<T: Serialize>(event: &str, data: T) {
@@ -263,7 +278,7 @@ pub mod emit {
         );
     }
 
-    pub fn create_bot(account_id: &AccountId, bot_id: String, base_price: String, quote_price: String) {
+    pub fn create_bot(account_id: &AccountId, bot_id: String, base_price: String, quote_price: String, base_expo: String, quote_expo: String) {
         log_event(
             "create_bot",
             CreateBot {
@@ -271,6 +286,8 @@ pub mod emit {
                 bot_id,
                 base_price,
                 quote_price,
+                base_expo,
+                quote_expo,
             },
         );
     }
@@ -281,6 +298,18 @@ pub mod emit {
             CloseBot {
                 account_id: &account_id,
                 bot_id,
+            },
+        );
+    }
+
+    pub fn close_bot_price(base_price: String, quote_price: String, base_expo: String, quote_expo: String) {
+        log_event(
+            "close_bot_price",
+            CloseBotPrice {
+                base_price,
+                quote_price,
+                base_expo,
+                quote_expo,
             },
         );
     }
@@ -298,11 +327,15 @@ pub mod emit {
         );
     }
 
-    pub fn trigger_bot(bot_id: String) {
+    pub fn trigger_bot(bot_id: String, base_price: String, quote_price: String, base_expo: String, quote_expo: String) {
         log_event(
             "trigger_bot",
             TriggerBot {
                 bot_id,
+                base_price,
+                quote_price,
+                base_expo,
+                quote_expo,
             },
         );
     }

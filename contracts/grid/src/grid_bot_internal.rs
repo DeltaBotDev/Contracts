@@ -48,7 +48,7 @@ impl GridBotContract {
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
         // log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
-        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string())
+        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
     }
 
     pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) -> (U256C, U256C) {
@@ -104,7 +104,8 @@ impl GridBotContract {
     }
 
     pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
-        require!(self.internal_check_bot_close_permission(base_price, quote_price, bot), INVALID_PRICE_OR_NO_PERMISSION);
+        require!(self.internal_check_bot_close_permission(base_price.clone(), quote_price.clone(), bot), INVALID_PRICE_OR_NO_PERMISSION);
+        emit::close_bot_price(base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
         self.internal_close_bot(user, bot_id, bot, pair);
     }
 
@@ -117,12 +118,12 @@ impl GridBotContract {
             // self.bot_map.get_mut(&bot_id).unwrap().active = true;
             bot.active = true;
             self.bot_map.insert(&bot_id, &bot);
-            emit::trigger_bot(bot_id.clone());
+            emit::trigger_bot(bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
         } else if !bot.trigger_price_above_or_below.clone() && bot.trigger_price.clone().as_u128() >= oracle_pair_price {
             // self.bot_map.get_mut(&bot_id).unwrap().active = true;
             bot.active = true;
             self.bot_map.insert(&bot_id, &bot);
-            emit::trigger_bot(bot_id.clone());
+            emit::trigger_bot(bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
         } else {
             env::panic_str(CAN_NOT_TRIGGER);
         }
@@ -163,6 +164,19 @@ impl GridBotContract {
             return (entry_price.as_u128() - oracle_pair_price) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage as u128;
         } else {
             return (oracle_pair_price - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage  as u128;
+        }
+    }
+
+    pub fn internal_check_bot_amount(&self, grid_sell_count: u16, grid_buy_count: u16, first_base_amount_256: U256C, first_quote_amount_256: U256C,
+                                     last_base_amount_256: U256C, last_quote_amount_256: U256C) {
+        if grid_sell_count > 0 && grid_buy_count > 0 {
+            require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
+        }
+        if grid_sell_count > 0 {
+            require!(first_base_amount_256.as_u128() > 0 && first_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
+        }
+        if grid_buy_count > 0 {
+            require!(last_base_amount_256.as_u128() > 0 && last_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
         }
     }
 
