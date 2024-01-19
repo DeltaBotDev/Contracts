@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, require};
+use near_sdk::{AccountId, Balance, log, require};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::U128;
 use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};
@@ -144,7 +144,7 @@ impl GridBotContract {
         // let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U256C::from(0));
         // *locked_balance -= amount;
 
-        self.internal_reduce_asset(user, token, &amount);
+        self.internal_reduce_locked_assets(user, token, &amount);
     }
 
     pub fn internal_add_protocol_fee_from_revenue(&mut self, bot: &mut GridBot, token: &AccountId, fee: U256C, pair: &Pair) {
