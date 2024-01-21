@@ -348,7 +348,7 @@ pub mod emit {
                 forward_or_reverse,
                 level,
                 token_sell: &order.token_sell,
-                token_buy: &order.token_sell,
+                token_buy: &order.token_buy,
                 amount_sell: order.amount_sell.as_u128(),
                 amount_buy: order.amount_buy.as_u128(),
                 fill_buy_or_sell: order.fill_buy_or_sell.clone(),
