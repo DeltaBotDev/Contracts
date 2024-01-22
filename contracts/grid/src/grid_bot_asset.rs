@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, log, require};
+use near_sdk::{AccountId, Balance, require};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::U128;
 use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};

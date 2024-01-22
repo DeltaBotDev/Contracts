@@ -62,6 +62,10 @@ impl GridBotContract {
         let mut total_took_fee = U256C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
+            if take_order.amount_sell.as_u128() == took_amount_sell.as_u128() {
+                // over
+                break;
+            }
             let (taker_sell, taker_buy, maker, maker_fee, current_revenue, maker_left_revenue, maker_total_revenue) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
             // calculate taker fee
             let (real_taker_buy, taker_fee) = self.internal_calculate_taker_fee(taker_buy);
@@ -168,15 +172,17 @@ impl GridBotContract {
     }
 
     pub fn internal_check_bot_amount(&self, grid_sell_count: u16, grid_buy_count: u16, first_base_amount_256: U256C, first_quote_amount_256: U256C,
-                                     last_base_amount_256: U256C, last_quote_amount_256: U256C) {
+                                     last_base_amount_256: U256C, last_quote_amount_256: U256C, pair: &Pair, base_amount_sell: U256C, quote_amount_buy: U256C) {
         if grid_sell_count > 0 && grid_buy_count > 0 {
             require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
         }
         if grid_sell_count > 0 {
             require!(first_base_amount_256.as_u128() > 0 && first_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
+            require!(base_amount_sell.as_u128() / grid_sell_count as u128 >= self.deposit_limit_map.get(&pair.base_token).unwrap().as_u128(), BASE_TO_SMALL);
         }
         if grid_buy_count > 0 {
             require!(last_base_amount_256.as_u128() > 0 && last_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
+            require!(quote_amount_buy.as_u128() / grid_buy_count as u128 >= self.deposit_limit_map.get(&pair.quote_token).unwrap().as_u128(), QUOTE_TO_SMALL);
         }
     }
 

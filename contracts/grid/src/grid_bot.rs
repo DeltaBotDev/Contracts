@@ -25,10 +25,6 @@ impl GridBotContract {
         let entry_price_256 = U256C::from(entry_price.0);
         require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
-        // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
-        // amount must u128, u128 * u128 <= u256, so, it's ok
-        self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
-                                       last_base_amount_256, last_quote_amount_256);
 
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
@@ -37,6 +33,12 @@ impl GridBotContract {
         // calculate all assets
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount_256.clone(), last_base_amount_256.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
                                                        grid_type.clone(), grid_rate.clone(), grid_offset_256.clone(), fill_base_or_quote.clone());
+
+        // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
+        // amount must u128, u128 * u128 <= u256, so, it's ok
+        self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
+                                       last_base_amount_256, last_quote_amount_256, &pair, base_amount_sell, quote_amount_buy);
+
         // check balance
         require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
         require!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);

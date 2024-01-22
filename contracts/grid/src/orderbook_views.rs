@@ -9,8 +9,8 @@ impl GridBotContract {
         require!(self.order_map.contains_key(&bot_id), INVALID_BOT_ID);
         require!(self.bot_map.contains_key(&bot_id), INVALID_BOT_ID);
         let bot = self.bot_map.get(&bot_id).unwrap();
-        require!(!(bot.closed.clone()), BOT_CLOSED);
-        require!(bot.active.clone(), BOT_DISABLE);
+        require!(!(bot.closed.clone()), bot.bot_id.clone() + BOT_CLOSED);
+        require!(bot.active.clone(), bot.bot_id.clone() + BOT_DISABLE);
         require!(self.pair_map.contains_key(&(bot.pair_id.clone())), INVALID_PAIR_ID);
         // check timestamp
         require!(bot.valid_until_time >= U256C::from(env::block_timestamp_ms()), BOT_EXPIRED);
