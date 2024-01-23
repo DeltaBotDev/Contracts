@@ -36,8 +36,8 @@ impl GridBotHelper {
             .args_json(json!({
                 "base_token": *base_token,
                 "quote_token": *quote_token,
-                "base_min_deposit": base_min_deposit,
-                "quote_min_deposit": quote_min_deposit,
+                "base_min_deposit": U128::from(base_min_deposit.as_u128()),
+                "quote_min_deposit": U128::from(quote_min_deposit.as_u128()),
                 "base_oracle_id": base_oracle_id,
                 "quote_oracle_id": quote_oracle_id,
             }))

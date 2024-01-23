@@ -70,18 +70,16 @@ impl GridBotContract {
     }
 
     pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U256C) -> Order {
-        let bot_orders = self.order_map.get(&bot_id).unwrap();
+        let mut bot_orders = self.order_map.get(&bot_id).unwrap();
         let order;
         {
-            let mut orders = if forward_or_reverse {
-                bot_orders.get(FORWARD_ORDERS_INDEX).unwrap()
-            } else {
-                bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
-            };
+            let index = if forward_or_reverse { FORWARD_ORDERS_INDEX } else { REVERSE_ORDERS_INDEX };
+            let mut orders = bot_orders.get(index).unwrap();
             let tmp_order = &mut orders.get(level.clone() as u64).unwrap();
             tmp_order.filled += current_filled;
             orders.replace(level as u64, tmp_order);
 
+            bot_orders.replace(index, &orders);
             order = tmp_order.clone();
         }
         self.order_map.insert(&bot_id, &bot_orders);
