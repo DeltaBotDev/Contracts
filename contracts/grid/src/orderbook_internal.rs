@@ -43,7 +43,10 @@ impl GridBotContract {
         // place opposite order
         let opposite_order = GridBotContract::internal_get_opposite_order(&made_order, bot.clone(), forward_or_reverse.clone(), level.clone());
         self.internal_place_order(bot_id.clone(), opposite_order.clone(), !forward_or_reverse.clone(), level.clone());
-        emit::order_update(bot_id.clone(), !forward_or_reverse.clone(), level.clone(), &opposite_order);
+
+        // query real_opposite_order
+        let (real_opposite_order, _) = self.query_order(bot_id.clone(), !forward_or_reverse.clone(), level.clone());
+        emit::order_update(bot_id.clone(), !forward_or_reverse.clone(), level.clone(), &real_opposite_order);
 
         // calculate bot's revenue
         let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.clone());
