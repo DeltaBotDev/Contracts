@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, log, require};
+use near_sdk::{AccountId, Balance, require};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::U128;
 use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};
@@ -119,7 +119,7 @@ impl GridBotContract {
         });
 
         let balance = user_locked_balances.get(token).unwrap_or(U256C::from(0));
-        log!("internal_reduce_locked_assets: {}, {}", balance.as_u128().to_string(), amount.as_u128().to_string());
+        // log!("internal_reduce_locked_assets: {}, {}", balance.as_u128().to_string(), amount.as_u128().to_string());
         user_locked_balances.insert(token, &(balance - amount));
 
         self.user_locked_balances_map.insert(user, &user_locked_balances);

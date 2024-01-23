@@ -9,16 +9,23 @@ impl GridBotContract {
     pub fn internal_place_order(&mut self, bot_id: String, order: Order, forward_or_reverse: bool, level: usize) {
         require!(self.bot_map.contains_key(&bot_id), INVALID_BOT_ID_FOR_BOT_MAP);
         require!(self.order_map.contains_key(&bot_id), INVALID_BOT_ID_FOR_ORDER_MAP);
-        require!(self.order_map.get(&bot_id).unwrap().len() == ORDER_POSITION_SIZE.clone(), INVALID_ORDER_POSITION_LEN);
 
-        let bot_orders = self.order_map.get(&bot_id).unwrap();
-        // let orders = if forward_or_reverse { &mut bot_orders[FORWARD_ORDERS_INDEX] } else { &mut bot_orders[REVERSE_ORDERS_INDEX] };
-        let mut orders = if forward_or_reverse {
-            bot_orders.get(FORWARD_ORDERS_INDEX).unwrap()
+        let mut bot_orders = self.order_map.get(&bot_id).unwrap();
+        let orders = if forward_or_reverse {
+            &mut bot_orders.forward_orders
         } else {
-            bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
+            &mut bot_orders.reverse_orders
         };
-        GridBotContract::private_place_order(order, &mut orders, level.clone());
+        let placed_order = &mut orders.get(level.clone() as u64).unwrap();
+        if GridBotContract::internal_order_is_empty(placed_order) {
+            orders.replace(level.clone() as u64, &order);
+        } else {
+            // merge order
+            placed_order.amount_sell += order.amount_sell;
+            placed_order.amount_buy += order.amount_buy;
+            orders.replace(level.clone() as u64, placed_order);
+        }
+
         self.order_map.insert(&bot_id, &bot_orders);
     }
 
@@ -74,17 +81,12 @@ impl GridBotContract {
 
     pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U256C) -> Order {
         let mut bot_orders = self.order_map.get(&bot_id).unwrap();
-        let order;
-        {
-            let index = if forward_or_reverse { FORWARD_ORDERS_INDEX } else { REVERSE_ORDERS_INDEX };
-            let mut orders = bot_orders.get(index).unwrap();
-            let tmp_order = &mut orders.get(level.clone() as u64).unwrap();
-            tmp_order.filled += current_filled;
-            orders.replace(level as u64, tmp_order);
+        let orders = if forward_or_reverse { &mut bot_orders.forward_orders } else { &mut bot_orders.reverse_orders };
+        let order = &mut orders.get(level.clone() as u64).unwrap();
+        order.filled += current_filled;
+        orders.replace(level as u64, order);
 
-            bot_orders.replace(index, &orders);
-            order = tmp_order.clone();
-        }
+        // bot_orders.replace(index, &orders);
         self.order_map.insert(&bot_id, &bot_orders);
         return order.clone();
     }
@@ -249,20 +251,6 @@ impl GridBotContract {
     pub fn internal_calculate_taker_fee(&self, took_buy: U256C) -> (U256C, U256C) {
         let taker_fee = took_buy * U256C::from(self.taker_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR);
         return (took_buy - taker_fee, taker_fee);
-    }
-
-    fn private_place_order(order: Order, placed_orders: &mut Vector<Order>, level: usize) {
-        // let placed_order = &mut placed_orders[level.clone()];
-        let placed_order = &mut placed_orders.get(level.clone() as u64).unwrap();
-        if GridBotContract::internal_order_is_empty(placed_order) {
-            // placed_orders[level.clone()] = order;
-            placed_orders.replace(level.clone() as u64, &order);
-            return;
-        }
-        // merge order
-        placed_order.amount_sell += order.amount_sell;
-        placed_order.amount_buy += order.amount_buy;
-        placed_orders.replace(level.clone() as u64, placed_order);
     }
 
 }

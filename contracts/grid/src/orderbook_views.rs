@@ -16,9 +16,9 @@ impl GridBotContract {
         require!(bot.valid_until_time >= U256C::from(env::block_timestamp_ms()), BOT_EXPIRED);
         let bot_orders = self.order_map.get(&bot_id).unwrap();
         let orders = if forward_or_reverse {
-            bot_orders.get(FORWARD_ORDERS_INDEX).unwrap()
+            bot_orders.forward_orders
         } else {
-            bot_orders.get(REVERSE_ORDERS_INDEX).unwrap()
+            bot_orders.reverse_orders
         };
         // check order
         require!(orders.get(level.clone() as u64).is_some(), INVALID_PARAM);

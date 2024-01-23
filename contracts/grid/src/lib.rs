@@ -45,7 +45,7 @@ pub struct GridBotContract {
     /// bot_id = GRID:index
     pub bot_map: LookupMap<String, GridBot>,
     /// order_map[bot_id][0][0] = first forward order; order_map[bot_id][1][0] = first reverse order;
-    pub order_map: LookupMap<String, Vector<Vector<Order>>>,
+    pub order_map: LookupMap<String, OrdersStorage>,
     /// start from 0, used from 1
     pub next_bot_id: u128,
     // /// oracle_price_map[pair_id] = OraclePrice
@@ -76,7 +76,8 @@ impl GridBotContract {
             protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
             taker_fee_rate: DEFAULT_TAKER_FEE,
             bot_map: LookupMap::new(b"bots".to_vec()),
-            order_map: LookupMap::new(b"orders".to_vec()),
+            // order_map: LookupMap::new(b"orders".to_vec()),
+            order_map: LookupMap::new(b"orders_storage".to_vec()),
             next_bot_id: 1,
             // oracle_price_map: LookupMap::new(b"oracle".to_vec()),
             pair_map: LookupMap::new(b"pairs".to_vec()),

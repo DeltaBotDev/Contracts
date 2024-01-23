@@ -7,7 +7,6 @@ use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
-use crate::entity::StorageKey;
 use crate::events::emit;
 use crate::oracle::{Price, PriceIdentifier};
 
@@ -34,8 +33,7 @@ impl GridBotContract {
 
         // initial orders space, create empty orders
         let grid_count = grid_bot.grid_sell_count.clone() + grid_bot.grid_buy_count.clone();
-        let grid_orders = GridBotContract::create_default_orders(grid_count);
-        self.order_map.insert(&grid_bot.bot_id, &grid_orders);
+        self.create_default_orders(grid_bot.bot_id.clone(), grid_count);
 
         // transfer assets
         self.internal_transfer_assets_to_lock(taker.clone(), pair.base_token.clone(), base_amount_sell);
@@ -313,16 +311,31 @@ impl GridBotContract {
         return (base_amount_sell, quote_amount_buy);
     }
 
-    pub fn create_default_orders(grid_count: u16) -> Vector<Vector<Order>> {
-        let mut outer_vector = Vector::new(StorageKey::OrdersMainKey);
-        for i in 0..2 {
-            let mut inner_vector = Vector::new(StorageKey::OrdersSubKey(i as u64));
-            for _ in 0..grid_count {
-                inner_vector.push(&Order::default());
-            }
-            outer_vector.push(&inner_vector);
+    // pub fn create_default_orders(bot_id: String, grid_count: u16) -> Vector<Vector<Order>> {
+    //     let mut outer_vector = Vector::new(StorageKey::OrdersMainKey(bot_id));
+    //     for i in 0..2 {
+    //         let mut inner_vector = Vector::new(StorageKey::OrdersSubKey(i as u64));
+    //         for _ in 0..grid_count {
+    //             inner_vector.push(&Order::default());
+    //         }
+    //         outer_vector.push(&inner_vector);
+    //     }
+    //     return outer_vector;
+    // }
+
+    pub fn create_default_orders(&mut self, bot_id: String, grid_count: u16) {
+        let forward_key = bot_id.clone() + "forward";
+        let reverse_key = bot_id.clone() + "reverse";
+        let mut order_storage = OrdersStorage {
+            forward_orders: Vector::new(forward_key.as_bytes().to_vec()),
+            reverse_orders: Vector::new(reverse_key.as_bytes().to_vec()),
+        };
+        for _ in 0..grid_count {
+            order_storage.forward_orders.push(&Order::default());
+            order_storage.reverse_orders.push(&Order::default());
         }
-        return outer_vector;
+
+        self.order_map.insert(&bot_id, &order_storage);
     }
 
     pub fn internal_init_token(&mut self, token: AccountId, min_deposit: U128) -> U256C {

@@ -4,6 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq, Eq};
 use crate::utils::{U256C};
 use near_sdk::BorshStorageKey;
+use near_sdk::collections::Vector;
 use near_sdk::json_types::U128;
 use crate::oracle::PriceIdentifier;
 
@@ -100,6 +101,13 @@ pub struct Order {
     pub fill_buy_or_sell: bool,
     pub filled: U256C,
 }
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct OrdersStorage {
+    pub forward_orders: Vector<Order>,
+    pub reverse_orders: Vector<Order>,
+}
+
 impl Default for Order {
     fn default() -> Self {
         Order {
@@ -227,10 +235,6 @@ pub enum StorageKey {
     UserBalanceSubKey(AccountId),
     UserLockedBalanceMainKey,
     UserLockedBalanceSubKey(AccountId),
-    OrdersMainKey,
-    OrdersSubKey(u64),
-    // WithdrawFailedMainKey,
-    // WithdrawFailedSubKey(AccountId),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
