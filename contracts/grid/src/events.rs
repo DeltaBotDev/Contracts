@@ -106,6 +106,17 @@ pub mod emit {
         pub quote_expo: String,
     }
 
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct WrapNearError<'a> {
+        pub user: &'a AccountId,
+        #[serde(with = "u128_dec_format")]
+        pub got_amount: Balance,
+        #[serde(with = "u128_dec_format")]
+        pub want_amount: Balance,
+        pub to_wnear: bool,
+    }
+
     fn log_event<T: Serialize>(event: &str, data: T) {
         let event = json!({
             "standard": "DeltaBot",
@@ -356,5 +367,19 @@ pub mod emit {
             },
         );
     }
+
+    pub fn wrap_near_error(user: &AccountId, got_amount: Balance, want_amount: Balance, to_wnear: bool) {
+        log_event(
+            "wrap_near_error",
+            WrapNearError {
+                user,
+                got_amount,
+                want_amount,
+                to_wnear,
+            },
+        );
+    }
+
+
 
 }

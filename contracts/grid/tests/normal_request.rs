@@ -12,6 +12,11 @@ use crate::workspace_env::*;
 
 mod workspace_env;
 
+pub fn get_pair_key(base_token: &AccountId, quote_token: &AccountId) -> String {
+    return format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
+}
+
+
 #[tokio::test]
 async fn asset_change() -> Result<(), workspaces::error::Error> {
     let (worker, owner, maker_account, taker_account, gridbot_contract, eth_token_contract, usdc_token_contract) = create_contract().await?;
@@ -42,18 +47,18 @@ async fn asset_change() -> Result<(), workspaces::error::Error> {
 
     // query global balance
     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("global_usdc:{}", global_usdc.to_string());
-    require!(global_usdc == U256C::from(100000000000000 as u128));
+    println!("global_usdc:{}", global_usdc.0.to_string());
+    require!(global_usdc.0 == 100000000000000 as u128);
     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    require!(global_eth == U256C::from(10000000000000000000000 as u128));
-    println!("global_eth:{}", global_eth.to_string());
+    require!(global_eth.0 == 10000000000000000000000 as u128);
+    println!("global_eth:{}", global_eth.0.to_string());
     // query user balance
     let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after deposit user_balance_usdc:{}", user_balance_usdc.to_string());
-    require!(user_balance_usdc == U256C::from(100000000000000 as u128));
+    println!("after deposit user_balance_usdc:{}", user_balance_usdc.0.to_string());
+    require!(user_balance_usdc.0 == 100000000000000 as u128);
     let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after deposit user_balance_eth:{}", user_balance_eth.to_string());
-    require!(user_balance_eth == U256C::from(10000000000000000000000 as u128));
+    println!("after deposit user_balance_eth:{}", user_balance_eth.0.to_string());
+    require!(user_balance_eth.0 == 10000000000000000000000 as u128);
 
     // set oracle price
     let current_price = U256C::from(220000);
@@ -124,26 +129,26 @@ async fn asset_change() -> Result<(), workspaces::error::Error> {
 
     // query global balance
     let global_usdc = gridbot_contract.query_global_balance(usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("global_usdc:{}", global_usdc.to_string());
-    require!(global_usdc == U256C::from(99997861070000 as u128));
+    println!("global_usdc:{}", global_usdc.0.to_string());
+    require!(global_usdc.0 == 99997861070000 as u128);
     let global_eth = gridbot_contract.query_global_balance(eth_token_contract.get_account_id()).await?.unwrap();
-    println!("global_eth:{}", global_eth.to_string());
-    require!(global_eth == U256C::from(10000000000000100000000 as u128));
+    println!("global_eth:{}", global_eth.0.to_string());
+    require!(global_eth.0 == 10000000000000100000000 as u128);
 
     // query user balance
     let user_balance_usdc = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after maker user_balance_usdc:{}", user_balance_usdc.to_string());
-    require!(user_balance_usdc == U256C::from(99968950000000 as u128));
+    println!("after maker user_balance_usdc:{}", user_balance_usdc.0.to_string());
+    require!(user_balance_usdc.0 == 99968950000000 as u128);
     let user_balance_eth = gridbot_contract.query_user_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after maker user_balance_eth:{}", user_balance_eth.to_string());
-    require!(user_balance_eth == U256C::from(9999999999999000000000 as u128));
+    println!("after maker user_balance_eth:{}", user_balance_eth.0.to_string());
+    require!(user_balance_eth.0 == 9999999999999000000000 as u128);
     // query user locked balance
     let user_locked_balance_usdc = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), usdc_token_contract.get_account_id()).await?.unwrap();
-    println!("after maker user_locked_balance_usdc:{}", user_locked_balance_usdc.to_string());
-    require!(user_locked_balance_usdc == U256C::from(28910000000 as u128));
+    println!("after maker user_locked_balance_usdc:{}", user_locked_balance_usdc.0.to_string());
+    require!(user_locked_balance_usdc.0 == 28910000000 as u128);
     let user_locked_balance_eth = gridbot_contract.query_user_locked_balance(&(AccountId::from_str(maker_account.id()).expect("Invalid AccountId")), eth_token_contract.get_account_id()).await?.unwrap();
-    println!("after maker user_locked_balance_eth:{}", user_locked_balance_eth.to_string());
-    require!(user_locked_balance_eth == U256C::from(1100000000 as u128));
+    println!("after maker user_locked_balance_eth:{}", user_locked_balance_eth.0.to_string());
+    require!(user_locked_balance_eth.0 == 1100000000 as u128);
 
     // check grid bot balance
     let gridbot_usdc_balance = usdc_token_contract.ft_balance_of(gridbot_contract.0.as_account()).await?;
@@ -158,8 +163,8 @@ async fn asset_change() -> Result<(), workspaces::error::Error> {
     println!("after taker ==== gridbot_eth_balance:{}", gridbot_eth_balance.0.to_string());
 
     let protocol_fee = gridbot_contract.query_protocol_fee(usdc_token_contract.get_account_id()).await.unwrap();
-    println!("protocol_fee:{}", protocol_fee.to_string());
-    require!(gridbot_eth_balance.as_u128() == 1070000 as u128);
+    println!("protocol_fee:{}", protocol_fee.0.to_string());
+    require!(protocol_fee.0 == 1070000 as u128);
 
     Ok(())
 }
@@ -478,10 +483,6 @@ async fn asset_change() -> Result<(), workspaces::error::Error> {
 //
 //     Ok(())
 // }
-
-pub fn get_pair_key(base_token: &AccountId, quote_token: &AccountId) -> String {
-    return format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
-}
 
 // take multi orders
 // #[tokio::test]

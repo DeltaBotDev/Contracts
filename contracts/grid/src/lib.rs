@@ -21,6 +21,7 @@ mod grid_bot_get_set;
 mod grid_bot_asset;
 mod owner;
 mod oracle;
+mod wnear;
 
 pub use crate::constants::*;
 pub use crate::errors::*;
@@ -60,12 +61,43 @@ pub struct GridBotContract {
     pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub market_user_map: LookupMap<AccountId, bool>,
+    pub wnear: AccountId,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+pub struct OldGridBotContract {
+    pub owner_id: AccountId,
+    pub oracle: AccountId,
+    pub oracle_valid_time: u64,
+    pub status: GridStatus,
+    /// real_protocol_fee = protocol_fee / 1000000
+    pub protocol_fee_rate: u128,
+    pub taker_fee_rate: u128,
+    /// bot_map[bot_id] = bot
+    /// bot_id = GRID:index
+    pub bot_map: LookupMap<String, GridBot>,
+    /// order_map[bot_id][0][0] = first forward order; order_map[bot_id][1][0] = first reverse order;
+    pub order_map: LookupMap<String, OrdersStorage>,
+    /// start from 0, used from 1
+    pub next_bot_id: u128,
+    // /// oracle_price_map[pair_id] = OraclePrice
+    // pub oracle_price_map: LookupMap<String, OraclePrice>,
+    /// pair_map[base_token_addr+":"+quote_token_addr] = Pair
+    pub pair_map: LookupMap<String, Pair>,
+    pub protocol_fee_map: LookupMap<AccountId, U256C>,
+    // pub storage_fee: u128,
+    pub global_balances_map: LookupMap<AccountId, U256C>,
+    pub deposit_limit_map: LookupMap<AccountId, U256C>,
+    pub user_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
+    pub market_user_map: LookupMap<AccountId, bool>,
 }
 
 #[near_bindgen]
 impl GridBotContract {
     #[init]
-    pub fn new(owner_id: AccountId, oracle: AccountId) -> Self {
+    pub fn new(owner_id: AccountId, oracle: AccountId, wnear: AccountId) -> Self {
         assert!(!env::state_exists());
         GridBotContract {
             owner_id,
@@ -89,6 +121,7 @@ impl GridBotContract {
             user_locked_balances_map: LookupMap::new(StorageKey::UserLockedBalanceMainKey),
             // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
             market_user_map: LookupMap::new(b"market_users".to_vec()),
+            wnear,
         }
     }
 }

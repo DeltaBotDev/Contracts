@@ -21,6 +21,10 @@ impl GridBotContract {
                                pair: &Pair,
                                grid_bot: &mut GridBot) {
         require!(self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage), INVALID_PRICE);
+        // create bot id
+        let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
+        grid_bot.bot_id = next_bot_id;
+
         // calculate all assets again
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(grid_bot.first_quote_amount.clone(), grid_bot.last_base_amount.clone(), grid_bot.grid_sell_count.clone(), grid_bot.grid_buy_count.clone(),
                                                                                                   grid_bot.grid_type.clone(), grid_bot.grid_rate.clone(), grid_bot.grid_offset.clone(), grid_bot.fill_base_or_quote.clone());
@@ -361,6 +365,27 @@ impl GridBotContract {
         let mut array = [0u8; 32];
         array.copy_from_slice(oracle_bytes_slice);
         return PriceIdentifier(array);
+    }
+
+    pub fn internal_need_wrap_near(&self, user: &AccountId, pair: &Pair, base_amount: U256C, quote_amount: U256C) -> bool {
+        if pair.base_token != self.wnear && pair.quote_token != self.wnear {
+            return false;
+        }
+        let wnear_balance = self.internal_get_user_balance(&user, &self.wnear);
+        if pair.base_token == self.wnear {
+            // query balance
+            if wnear_balance >= base_amount {
+                return false;
+            }
+            return true
+        } else if pair.quote_token == self.wnear {
+            // query balance
+            if wnear_balance >= quote_amount {
+                return false;
+            }
+            return true
+        }
+        return true;
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {

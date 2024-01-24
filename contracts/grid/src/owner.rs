@@ -27,8 +27,32 @@ impl GridBotContract {
     #[init(ignore_state)]
     #[private]
     pub fn migrate() -> Self {
-        let contract: GridBotContract = env::state_read().expect(CAN_NOT_READ_STATE);
-        contract
+        let contract: OldGridBotContract = env::state_read().expect(CAN_NOT_READ_STATE);
+        // contract
+        Self {
+            owner_id: contract.owner_id,
+            oracle: contract.oracle,
+            oracle_valid_time: DEFAULT_ORACLE_VALID_TIME,
+            status: GridStatus::Running,
+            // 1%
+            protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
+            taker_fee_rate: DEFAULT_TAKER_FEE,
+            bot_map: contract.bot_map,
+            // order_map: LookupMap::new(b"orders".to_vec()),
+            order_map: contract.order_map,
+            next_bot_id: contract.next_bot_id,
+            // oracle_price_map: LookupMap::new(b"oracle".to_vec()),
+            pair_map: contract.pair_map,
+            protocol_fee_map: contract.protocol_fee_map,
+            // storage_fee: 0,
+            global_balances_map: contract.global_balances_map,
+            deposit_limit_map: contract.deposit_limit_map,
+            user_balances_map: contract.user_balances_map,
+            user_locked_balances_map: contract.user_locked_balances_map,
+            // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
+            market_user_map: contract.market_user_map,
+            wnear: AccountId::new_unchecked("wrap.testnet".to_string()),
+        }
     }
 }
 

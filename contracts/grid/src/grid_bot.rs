@@ -23,7 +23,7 @@ impl GridBotContract {
         let stop_loss_price_256 = U256C::from(stop_loss_price.0);
         let valid_until_time_256 = U256C::from(valid_until_time.0);
         let entry_price_256 = U256C::from(entry_price.0);
-        require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
+        require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
         require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
 
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
@@ -39,15 +39,15 @@ impl GridBotContract {
         self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
                                        last_base_amount_256, last_quote_amount_256, &pair, base_amount_sell, quote_amount_buy);
 
-        // check balance
-        require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
-        require!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
+        // // check balance
+        // require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
+        // require!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
 
-        // create bot id
-        let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
+        // // create bot id
+        // let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
 
         // create bot
-        let mut new_grid_bot = GridBot {name, active: false, user: user.clone(), bot_id: next_bot_id.clone(), closed: false, pair_id, grid_type,
+        let mut new_grid_bot = GridBot {name, active: false, user: user.clone(), bot_id: "".to_string(), closed: false, pair_id, grid_type,
             grid_sell_count: grid_sell_count.clone(), grid_buy_count: grid_buy_count.clone(), grid_rate, grid_offset: grid_offset_256,
             first_base_amount: first_base_amount_256, first_quote_amount: first_quote_amount_256, last_base_amount: last_base_amount_256,
             last_quote_amount: last_quote_amount_256, fill_base_or_quote, trigger_price: trigger_price_256, trigger_price_above_or_below: false,
@@ -58,8 +58,13 @@ impl GridBotContract {
         // // record storage fee
         // self.storage_fee += env::attached_deposit();
 
-        // request token price
-        self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot);
+        if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
+            // wrap near to wnear first
+            self.deposit_near_to_get_wnear(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit() - STORAGE_FEE);
+        } else {
+            // request token price
+            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot);
+        }
     }
 
     #[payable]

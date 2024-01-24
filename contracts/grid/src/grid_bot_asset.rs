@@ -119,7 +119,6 @@ impl GridBotContract {
         });
 
         let balance = user_locked_balances.get(token).unwrap_or(U256C::from(0));
-        // log!("internal_reduce_locked_assets: {}, {}", balance.as_u128().to_string(), amount.as_u128().to_string());
         user_locked_balances.insert(token, &(balance - amount));
 
         self.user_locked_balances_map.insert(user, &user_locked_balances);
@@ -252,8 +251,13 @@ impl GridBotContract {
         }
         // reduce user asset
         self.internal_reduce_asset(user, token, &amount);
-        // start transfer
-        self.internal_ft_transfer(&user, &token, amount.as_u128());
+        if token.clone() == self.wnear {
+            // wrap to near
+            self.withdraw_near(&user, amount.as_u128());
+        } else {
+            // start transfer
+            self.internal_ft_transfer(&user, &token, amount.as_u128());
+        }
         emit::withdraw_started(&user, amount.as_u128(), &token);
     }
 

@@ -87,6 +87,19 @@ impl GridBotContract {
                 )
         )
     }
+
+    pub fn internal_ft_transfer_near(&mut self, receiver_id: &AccountId, amount: Balance) -> Promise {
+        Promise::new(receiver_id.clone()).transfer(amount)
+            .then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_ft_transfer_near(
+                    receiver_id.clone(),
+                    self.wnear.clone(),
+                    amount.into(),
+                )
+            )
+    }
     // pub fn internal_ft_transfer_unowned_asset(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
     //     ext_fungible_token::ext(token_id.clone())
     //         .with_attached_deposit(ONE_YOCTO)
@@ -112,6 +125,8 @@ trait ExtSelf {
     fn after_storage_deposit(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                              -> bool;
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+                         -> bool;
+    fn after_ft_transfer_near(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
     fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
@@ -151,6 +166,26 @@ impl ExtSelf for GridBotContract {
             emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
             // self.internal_increase_withdraw_failed_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
             self.internal_increase_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
+        } else {
+            emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
+            // reduce from global asset
+            self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
+        }
+        promise_success
+    }
+
+    #[private]
+    fn after_ft_transfer_near(
+        &mut self,
+        account_id: AccountId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        let promise_success = is_promise_success();
+        if !promise_success.clone() {
+            emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
+            // It has been wrapped to Near and cannot be added back. Generally it will not fail. Once it fails, it will be a big problem.
+            // self.internal_increase_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset
