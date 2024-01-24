@@ -49,6 +49,7 @@ pub const INVALID_QUOTE_AMOUNT: &str = "INVALID_QUOTE_AMOUNT";
 pub const CAN_NOT_TRIGGER: &str = "CAN_NOT_TRIGGER";
 pub const BASE_TO_SMALL: &str = "BASE_TO_SMALL";
 pub const QUOTE_TO_SMALL: &str = "QUOTE_TO_SMALL";
+pub const WRAP_TO_WNEAR_ERROR: &str = "WRAP_TO_WNEAR_ERROR";
 
 
 

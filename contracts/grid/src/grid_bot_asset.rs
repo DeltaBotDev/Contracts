@@ -206,10 +206,15 @@ impl GridBotContract {
         return (revenue_token, U256C::from(revenue));
     }
 
-    pub fn internal_deposit(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128) {
+    pub fn internal_deposit(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128) -> bool {
         require!(self.global_balances_map.contains_key(token_in), INVALID_TOKEN);
         // require min deposit
-        require!(amount.clone().0 >= self.deposit_limit_map.get(token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
+        // require!(amount.clone().0 >= self.deposit_limit_map.get(token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
+        if amount.clone().0 < self.deposit_limit_map.get(token_in).unwrap().as_u128() {
+            self.internal_token_refund(sender_id, token_in, LESS_DEPOSIT_AMOUNT);
+            emit::deposit_failed(sender_id, amount.clone().0, token_in);
+            return false;
+        }
         // log!("Deposit user:{}, token:{}, amount:{}", sender_id.clone(), token_in.clone(), amount.clone().0);
         // add amount to user
         self.internal_increase_asset(sender_id, token_in, &(U256C::from(amount.clone().0)));
@@ -217,12 +222,15 @@ impl GridBotContract {
         self.internal_increase_global_asset(token_in, &(U256C::from(amount.clone().0)));
         // event
         emit::deposit_success(sender_id, amount.clone().0, token_in);
+        return true;
     }
 
     pub fn internal_parse_take_request(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128, msg: String) -> U128 {
         let take_request = serde_json::from_str::<TakeRequest>(&msg).expect(INVALID_TAKE_PARAM);
         // deposit first
-        self.internal_deposit(sender_id, token_in, amount);
+        if !self.internal_deposit(sender_id, token_in, amount) {
+            return amount;
+        }
         // require
         require!(token_in.clone() == take_request.take_order.token_sell, INVALID_TOKEN);
         require!(amount.clone().0 >= take_request.take_order.amount_sell.0, INVALID_ORDER_AMOUNT);
@@ -245,6 +253,11 @@ impl GridBotContract {
     }
 
     //################################## Withdraw ##################################################
+    pub fn internal_withdraw_all(&mut self, user: &AccountId, token: &AccountId) {
+        let balance = self.internal_get_user_balance(&user, &token);
+        self.internal_withdraw(&user, &token, balance);
+    }
+
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
         if amount.as_u128() == 0 {
             return;
@@ -270,6 +283,17 @@ impl GridBotContract {
         // start transfer
         self.internal_ft_transfer_protocol_fee(&user, &token, amount.as_u128());
         emit::withdraw_protocol_fee_started(&user, amount.as_u128(), &token);
+    }
+
+    pub fn internal_create_bot_refund(&mut self, user: &AccountId, pair: &Pair, reason: &str) {
+        self.internal_withdraw_all(user, &pair.base_token);
+        self.internal_withdraw_all(user, &pair.quote_token);
+        emit::create_bot_error(user, reason);
+    }
+
+    pub fn internal_token_refund(&mut self, user: &AccountId, token: &AccountId, reason: &str) {
+        self.internal_withdraw_all(user, token);
+        emit::create_bot_error(user, reason);
     }
 
     // pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {

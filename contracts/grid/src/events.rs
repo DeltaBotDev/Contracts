@@ -29,6 +29,13 @@ pub mod emit {
 
     #[derive(Serialize)]
     #[serde(crate = "near_sdk::serde")]
+    struct CreateBotError<'a> {
+        pub user: &'a AccountId,
+        pub reason: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
     struct CloseBot<'a> {
         pub account_id: &'a AccountId,
         pub bot_id: String,
@@ -258,6 +265,17 @@ pub mod emit {
         );
     }
 
+    pub fn deposit_failed(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
+        log_event(
+            "deposit_failed",
+            AccountAmountToken {
+                account_id: &account_id,
+                amount,
+                token_id: &token_id,
+            },
+        );
+    }
+
     pub fn deposit_return_success(account_id: &AccountId, amount: Balance, token_id: &AccountId) {
         log_event(
             "deposit_return",
@@ -380,6 +398,14 @@ pub mod emit {
         );
     }
 
-
+    pub fn create_bot_error(user: &AccountId, reason: &str) {
+        log_event(
+            "create_bot_error",
+            CreateBotError {
+                user,
+                reason: reason.to_string(),
+            },
+        );
+    }
 
 }

@@ -23,12 +23,25 @@ impl GridBotContract {
         let stop_loss_price_256 = U256C::from(stop_loss_price.0);
         let valid_until_time_256 = U256C::from(valid_until_time.0);
         let entry_price_256 = U256C::from(entry_price.0);
-        require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
-        require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
-
-        require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
+
+        // require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
+        if env::attached_deposit() < STORAGE_FEE {
+            self.internal_create_bot_refund(&user, &pair, LESS_STORAGE_FEE);
+            return;
+        }
+        // require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
+        if self.status != GridStatus::Running {
+            self.internal_create_bot_refund(&user, &pair, PAUSE_OR_SHUTDOWN);
+            return;
+        }
+
+        // require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
+        if !self.pair_map.contains_key(&pair_id) {
+            self.internal_create_bot_refund(&user, &pair, INVALID_PAIR_ID);
+            return;
+        }
 
         // calculate all assets
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount_256.clone(), last_base_amount_256.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
@@ -36,8 +49,10 @@ impl GridBotContract {
 
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
         // amount must u128, u128 * u128 <= u256, so, it's ok
-        self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
-                                       last_base_amount_256, last_quote_amount_256, &pair, base_amount_sell, quote_amount_buy);
+        if !self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
+                                       last_base_amount_256, last_quote_amount_256, &user, &pair, base_amount_sell, quote_amount_buy) {
+            return;
+        }
 
         // // check balance
         // require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
@@ -60,7 +75,7 @@ impl GridBotContract {
 
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
-            self.deposit_near_to_get_wnear(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit() - STORAGE_FEE);
+            self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit() - STORAGE_FEE);
         } else {
             // request token price
             self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot);
@@ -120,8 +135,7 @@ impl GridBotContract {
     pub fn withdraw(&mut self, token: AccountId) {
         assert_one_yocto();
         let user = env::predecessor_account_id();
-        let balance = self.internal_get_user_balance(&user, &token);
-        self.internal_withdraw(&user, &token, balance);
+        self.internal_withdraw_all(&user, &token);
     }
 
     //################################################## Owner #####################################

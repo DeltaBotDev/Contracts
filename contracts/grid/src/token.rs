@@ -23,8 +23,11 @@ impl FungibleTokenReceiver for GridBotContract {
     ) -> PromiseOrValue<U128> {
         let token_in = env::predecessor_account_id();
         if msg.is_empty() {
-            self.internal_deposit(&sender_id, &token_in, amount);
-            return PromiseOrValue::Value(U128::from(0));
+            if !self.internal_deposit(&sender_id, &token_in, amount) {
+                return PromiseOrValue::Value(amount);
+            } else {
+                return PromiseOrValue::Value(U128::from(0));
+            }
         } else {
             let left = self.internal_parse_take_request(&sender_id, &token_in, amount, msg);
             return PromiseOrValue::Value(left);
