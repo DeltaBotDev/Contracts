@@ -2,6 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
 use near_sdk::collections::{LookupMap, Vector};
+use near_sdk::json_types::U128;
 
 mod utils;
 mod constants;
@@ -62,6 +63,16 @@ pub struct GridBotContract {
     // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub market_user_map: LookupMap<AccountId, bool>,
     pub wnear: AccountId,
+    /// post refer info and other things
+    pub operator_id: AccountId,
+    /// refer_recommender_user_map[recommender] = users
+    pub refer_recommender_user_map: LookupMap<AccountId, Vector<AccountId>>,
+    /// refer_user_recommender_map[user] = user's recommender
+    pub refer_user_recommender_map: LookupMap<AccountId, AccountId>,
+    /// refer_fee_map[user][token] = balance
+    pub refer_fee_map: LookupMap<AccountId, LookupMap<AccountId, U128>>,
+    /// refer_fee_rate[0] = first level, refer_fee_rate[1] = second level
+    pub refer_fee_rate: Vec<u32>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -92,6 +103,7 @@ pub struct OldGridBotContract {
     pub user_locked_balances_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub market_user_map: LookupMap<AccountId, bool>,
+    pub wnear: AccountId,
 }
 
 #[near_bindgen]
@@ -100,7 +112,7 @@ impl GridBotContract {
     pub fn new(owner_id: AccountId, oracle: AccountId, wnear: AccountId) -> Self {
         assert!(!env::state_exists());
         GridBotContract {
-            owner_id,
+            owner_id: owner_id.clone(),
             oracle,
             oracle_valid_time: DEFAULT_ORACLE_VALID_TIME,
             status: GridStatus::Running,
@@ -122,6 +134,11 @@ impl GridBotContract {
             // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
             market_user_map: LookupMap::new(b"market_users".to_vec()),
             wnear,
+            operator_id: owner_id,
+            refer_recommender_user_map: LookupMap::new(b"rec_users".to_vec()),
+            refer_user_recommender_map: LookupMap::new(b"user_rec".to_vec()),
+            refer_fee_map: LookupMap::new(StorageKey::ReferFeeMainKey),
+            refer_fee_rate: vec![],
         }
     }
 }

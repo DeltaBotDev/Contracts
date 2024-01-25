@@ -235,6 +235,10 @@ pub enum StorageKey {
     UserBalanceSubKey(AccountId),
     UserLockedBalanceMainKey,
     UserLockedBalanceSubKey(AccountId),
+    OrdersMainKey,
+    OrdersSubKey(u64),
+    ReferFeeMainKey,
+    ReferFeeSubKey(AccountId),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]

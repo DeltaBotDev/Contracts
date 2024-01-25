@@ -138,6 +138,13 @@ impl GridBotContract {
         self.internal_withdraw_all(&user, &token);
     }
 
+    //################################################## Operator ##################################
+    pub fn add_refer(&mut self, user: AccountId, recommender: AccountId) {
+        require!(env::predecessor_account_id() == self.operator_id || env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
+        require!(!self.refer_user_recommender_map.contains_key(&user), ADDED_RECOMMEND);
+        self.internal_add_refer(&user, &recommender);
+    }
+
     //################################################## Owner #####################################
 
     #[payable]
@@ -246,5 +253,17 @@ impl GridBotContract {
     pub fn set_market_user(&mut self, market_user: AccountId, enable: bool) {
         self.assert_owner();
         self.market_user_map.insert(&market_user, &enable);
+    }
+
+    #[payable]
+    pub fn set_operator(&mut self, new_operator: AccountId) {
+        self.assert_owner();
+        self.operator_id = new_operator;
+    }
+
+    #[payable]
+    pub fn set_refer_fee_rate(&mut self, new_refer_fee_rate: Vec<u32>) {
+        self.assert_owner();
+        self.refer_fee_rate = new_refer_fee_rate;
     }
 }

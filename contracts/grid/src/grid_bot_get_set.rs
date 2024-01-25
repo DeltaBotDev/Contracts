@@ -35,4 +35,8 @@ impl GridBotContract {
     pub fn internal_get_pair_key(base_token: AccountId, quote_token: AccountId) -> String {
         return format!("{}:{}", base_token.clone().to_string(), quote_token.clone().to_string());
     }
+
+    pub fn internal_get_recommender(&self, user: &AccountId) -> Option<AccountId> {
+        return self.refer_user_recommender_map.get(user);
+    }
 }

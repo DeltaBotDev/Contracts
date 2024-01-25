@@ -10,6 +10,19 @@ use crate::*;
 pub struct GridBotHelper(pub Contract);
 
 impl GridBotHelper {
+    pub async fn add_refer(&self, caller: &Account, user: AccountId, recommender: AccountId) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start add_refer");
+        caller
+            .call(self.0.id(), "add_refer")
+            .args_json(json!({
+                "user": user,
+                "recommender": recommender,
+            }))
+            .gas(300_000_000_000_000)
+            .transact()
+            .await
+    }
+
     pub async fn storage_deposit(&self, account: &Account) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start storage_deposit");
         self.0
@@ -43,6 +56,19 @@ impl GridBotHelper {
             }))
             .gas(300_000_000_000_000)
             .deposit(2_00_000_000_000_000_000_000_000)
+            .transact()
+            .await
+    }
+
+    pub async fn set_refer_fee_rate(&self, caller: &Account, new_refer_fee_rate: Vec<u32>) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+        log!("start set_refer_fee_rate");
+        caller
+            .call(self.0.id(), "set_refer_fee_rate")
+            .args_json(json!({
+                "new_refer_fee_rate": new_refer_fee_rate,
+            }))
+            .gas(300_000_000_000_000)
+            .deposit(1)
             .transact()
             .await
     }
@@ -381,6 +407,34 @@ impl GridBotHelper {
             .await?
             .json::<Option<U128>>()
     }
+
+    pub async fn query_refer_fee(&self, user: &AccountId, token: AccountId) -> Result<U128, workspaces::error::Error> {
+        log!("start query_refer_fee");
+        self.0
+            .call("query_refer_fee")
+            .args_json(json!({
+                "user": user.clone(),
+                "token": token,
+            }))
+            .view()
+            .await?
+            .json::<U128>()
+    }
+
+    pub async fn query_invited_users(&self, user: &AccountId, start: U128, end: U128) -> Result<Vec<AccountId>, workspaces::error::Error> {
+        log!("start query_invited_users");
+        self.0
+            .call("query_invited_users")
+            .args_json(json!({
+                "user": user.clone(),
+                "start": start,
+                "end": end,
+            }))
+            .view()
+            .await?
+            .json::<Vec<AccountId>>()
+    }
+
 
     // pub async fn query_storage_fee(&self) -> Result<U128, workspaces::error::Error> {
     //     log!("start query_storage_fee");

@@ -50,6 +50,8 @@ pub const CAN_NOT_TRIGGER: &str = "CAN_NOT_TRIGGER";
 pub const BASE_TO_SMALL: &str = "BASE_TO_SMALL";
 pub const QUOTE_TO_SMALL: &str = "QUOTE_TO_SMALL";
 pub const WRAP_TO_WNEAR_ERROR: &str = "WRAP_TO_WNEAR_ERROR";
+pub const ADDED_RECOMMEND: &str = "ADDED_RECOMMEND";
+pub const INVALID_NUM: &str = "INVALID_NUM";
 
 
 

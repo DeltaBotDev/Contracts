@@ -61,6 +61,39 @@ impl GridBotContract {
         return U128::from(self.protocol_fee_rate.clone());
     }
 
+    pub fn query_refer_fee(&self, user: AccountId, token: AccountId) -> U128 {
+        if !self.refer_fee_map.contains_key(&user) {
+            return U128::from(0);
+        }
+        let token_map = self.refer_fee_map.get(&user).unwrap();
+        if !token_map.contains_key(&token) {
+            return U128::from(0);
+        }
+        return token_map.get(&token).unwrap();
+    }
+
+    // start and end, is start from 1
+    pub fn query_invited_users(&self, user: AccountId, start: U128, end: U128) -> Vec<AccountId> {
+        require!(start.0 >= 1, INVALID_NUM);
+        require!(end.0 >= start.0, INVALID_NUM);
+        if !self.refer_recommender_user_map.contains_key(&user) {
+            return vec![];
+        }
+        let invited_users = self.refer_recommender_user_map.get(&user).unwrap();
+        if (invited_users.len() as u128) < start.0 {
+            return vec![];
+        }
+        let mut queried_users: Vec<AccountId>;
+        queried_users = vec![];
+        for index in start.0..(end.0 + 1) {
+            if (invited_users.len() as u128) < index {
+                break;
+            }
+            queried_users.push(invited_users.get((index - 1) as u64).unwrap());
+        }
+        return queried_users;
+    }
+
     // pub fn query_storage_fee(&self) -> U256C {
     //     return U256C::from(self.storage_fee.clone());
     // }

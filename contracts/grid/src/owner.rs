@@ -30,7 +30,7 @@ impl GridBotContract {
         let contract: GridBotContract = env::state_read().expect(CAN_NOT_READ_STATE);
         contract
         // Self {
-        //     owner_id: contract.owner_id,
+        //     owner_id: contract.owner_id.clone(),
         //     oracle: contract.oracle,
         //     oracle_valid_time: DEFAULT_ORACLE_VALID_TIME,
         //     status: GridStatus::Running,
@@ -51,7 +51,12 @@ impl GridBotContract {
         //     user_locked_balances_map: contract.user_locked_balances_map,
         //     // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
         //     market_user_map: contract.market_user_map,
-        //     wnear: AccountId::new_unchecked("wrap.testnet".to_string()),
+        //     wnear: contract.wnear,
+        //     operator_id: contract.owner_id,
+        //     refer_recommender_user_map: LookupMap::new(b"rec_users".to_vec()),
+        //     refer_user_recommender_map: LookupMap::new(b"user_rec".to_vec()),
+        //     refer_fee_map: LookupMap::new(StorageKey::ReferFeeMainKey),
+        //     refer_fee_rate: vec![],
         // }
     }
 }

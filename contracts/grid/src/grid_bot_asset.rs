@@ -1,7 +1,7 @@
 use near_sdk::{AccountId, Balance, require};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::U128;
-use crate::{GridBot, GridBotContract, StorageKey, TakeRequest, U256C};
+use crate::{GridBot, GridBotContract, PROTOCOL_FEE_DENOMINATOR, StorageKey, TakeRequest, U256C};
 use crate::entity::Pair;
 use crate::events::emit;
 use crate::errors::*;
@@ -294,6 +294,86 @@ impl GridBotContract {
     pub fn internal_token_refund(&mut self, user: &AccountId, token: &AccountId, reason: &str) {
         self.internal_withdraw_all(user, token);
         emit::create_bot_error(user, reason);
+    }
+
+    pub fn internal_add_refer_user_recommend(&mut self, user: &AccountId, recommender: &AccountId) {
+        self.refer_user_recommender_map.insert(&user, &recommender);
+    }
+
+    pub fn internal_add_refer_recommend_user(&mut self, user: &AccountId, recommender: &AccountId) {
+        if !self.refer_recommender_user_map.contains_key(&recommender) {
+            let key = user.to_string() + ":ref_users";
+            self.refer_recommender_user_map.insert(&recommender, &Vector::new(key.as_bytes().to_vec()));
+        }
+        let mut ref_users = self.refer_recommender_user_map.get(&recommender).unwrap();
+        ref_users.push(user);
+
+        self.refer_recommender_user_map.insert(&recommender, &ref_users);
+    }
+
+    pub fn internal_add_refer(&mut self, user: &AccountId, recommender: &AccountId) {
+        self.internal_add_refer_user_recommend(user, recommender);
+        self.internal_add_refer_recommend_user(user, recommender);
+    }
+
+    pub fn internal_increase_refer_fee(&mut self, user: &AccountId, token: &AccountId, amount: &U128) {
+        if amount.0 == 0 {
+            return;
+        }
+        if !self.refer_fee_map.contains_key(user) {
+            self.refer_fee_map.insert(user, &LookupMap::new(StorageKey::ReferFeeSubKey(user.clone())));
+        }
+        let mut tokens_map = self.refer_fee_map.get(user).unwrap();
+        if !tokens_map.contains_key(token) {
+            tokens_map.insert(token, &amount.clone());
+        } else {
+            tokens_map.insert(token, &U128::from(tokens_map.get(token).unwrap().0 + amount.clone().0));
+        }
+        self.refer_fee_map.insert(user, &tokens_map);
+    }
+
+    pub fn internal_reduce_refer_fee(&mut self, user: &AccountId, token: &AccountId, amount: &U128) {
+        if amount.0 == 0 {
+            return;
+        }
+        if !self.refer_fee_map.contains_key(user) {
+            self.refer_fee_map.insert(user, &LookupMap::new(StorageKey::ReferFeeSubKey(user.clone())));
+        }
+        let mut tokens_map = self.refer_fee_map.get(user).unwrap();
+        require!(tokens_map.contains_key(token), INVALID_TOKEN);
+        tokens_map.insert(token, &U128::from(tokens_map.get(token).unwrap().0 - amount.clone().0));
+        self.refer_fee_map.insert(user, &tokens_map);
+    }
+
+    pub fn internal_allocate_refer_fee(&mut self, protocol_fee: &U256C, user: &AccountId, token: &AccountId) -> (U256C, U256C) {
+        if protocol_fee.as_u128() == 0 {
+            return (protocol_fee.clone(), U256C::from(0));
+        }
+        let mut refer_fee = protocol_fee.as_u128();
+        let mut need_pay_fee = 0;
+        let mut pay_fee_user = user.clone();
+        let mut total_payed_fee = 0 as u128;
+        for refer_fee_rate in self.refer_fee_rate.clone() {
+            let recommender_op = self.internal_get_recommender(&pay_fee_user);
+            if recommender_op.is_none() {
+                break;
+            }
+            refer_fee = refer_fee * (refer_fee_rate as u128) / PROTOCOL_FEE_DENOMINATOR;
+            if need_pay_fee > 0 {
+                // pay to pay_fee_user
+                need_pay_fee -= refer_fee;
+                total_payed_fee += need_pay_fee;
+                // pay
+                self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee));
+            }
+            need_pay_fee = refer_fee;
+            pay_fee_user = recommender_op.unwrap();
+        }
+        if need_pay_fee > 0 {
+            total_payed_fee += need_pay_fee;
+            self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee));
+        }
+        return (U256C::from(protocol_fee.as_u128() - total_payed_fee), U256C::from(total_payed_fee));
     }
 
     // pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {

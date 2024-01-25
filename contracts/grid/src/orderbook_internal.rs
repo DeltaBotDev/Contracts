@@ -56,7 +56,8 @@ impl GridBotContract {
         emit::order_update(bot_id.clone(), !forward_or_reverse.clone(), level.clone(), &real_opposite_order);
 
         // calculate bot's revenue
-        let (revenue_token, revenue, protocol_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.clone());
+        let (revenue_token, revenue, maker_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.clone());
+
         // add revenue
         // let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
         let mut bot = self.bot_map.get(&bot_id.clone()).unwrap();
@@ -69,6 +70,8 @@ impl GridBotContract {
         self.internal_reduce_locked_assets(&(bot.user), &(taker_order.token_buy), &taker_buy);
         self.internal_increase_locked_assets(&(bot.user), &(taker_order.token_sell), &taker_sell);
 
+        // allocate refer fee
+        let (protocol_fee, _) = self.internal_allocate_refer_fee(&maker_fee, &bot.user, &revenue_token);
         // handle protocol fee
         self.internal_add_protocol_fee_from_revenue(&mut bot, &revenue_token, protocol_fee, &pair);
 
@@ -76,7 +79,7 @@ impl GridBotContract {
         self.bot_map.insert(&bot_id, &bot);
 
         // log!("Success take order, maker bot id:{}, forward_or_reserve:{}, level:{}, took sell:{}, took buy:{}", bot_id, forward_or_reverse, level, taker_sell, taker_buy);
-        return (taker_sell, taker_buy, bot.user.clone(), protocol_fee, revenue, bot.revenue, bot.total_revenue);
+        return (taker_sell, taker_buy, bot.user.clone(), maker_fee, revenue, bot.revenue, bot.total_revenue);
     }
 
     pub fn internal_update_order_filled(&mut self, bot_id: String, forward_or_reverse: bool, level: usize, current_filled: U256C) -> Order {
