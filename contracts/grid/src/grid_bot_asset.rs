@@ -125,10 +125,10 @@ impl GridBotContract {
     }
 
     //################################### Asset Transfer ###########################################
-    pub fn internal_transfer_assets_to_lock(&mut self, user: AccountId, token: AccountId, amount: U256C) {
-        self.internal_reduce_asset(&user, &token, &amount);
+    pub fn internal_transfer_assets_to_lock(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+        self.internal_reduce_asset(user, token, &amount);
 
-        self.internal_increase_locked_assets(&user, &token, &amount)
+        self.internal_increase_locked_assets(user, token, &amount);
     }
 
     pub fn internal_transfer_assets_to_unlock(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
@@ -147,7 +147,7 @@ impl GridBotContract {
         self.internal_reduce_locked_assets(user, token, &amount);
     }
 
-    pub fn internal_add_protocol_fee_from_revenue(&mut self, bot: &mut GridBot, token: &AccountId, fee: U256C, pair: &Pair) {
+    pub fn internal_add_protocol_fee_from_revenue(&mut self, bot: &mut GridBot, token: &AccountId, maker_fee: U256C, protocol_fee: U256C, pair: &Pair) {
         // if !self.protocol_fee_map.contains_key(token) {
         //     self.protocol_fee_map.insert(&token, &U256C::from(0));
         // }
@@ -157,15 +157,15 @@ impl GridBotContract {
         // reduce bot's asset
         if *token == pair.base_token {
             // bot_mut.total_base_amount -= U256C::from(fee.clone());
-            bot.total_base_amount -= fee.clone();
+            bot.total_base_amount -= maker_fee.clone();
         } else {
             // bot_mut.total_quote_amount -= U256C::from(fee.clone());
-            bot.total_quote_amount -= fee.clone();
+            bot.total_quote_amount -= maker_fee.clone();
         }
         // reduce user's lock asset
-        self.internal_reduce_locked_assets(&user, &token, &(fee.clone()));
+        self.internal_reduce_locked_assets(&user, token, &(maker_fee.clone()));
         // add into protocol fee map
-        self.internal_increase_protocol_fee(token, &(fee.clone()));
+        self.internal_increase_protocol_fee(token, &(protocol_fee.clone()));
     }
 
     pub fn internal_update_bot_asset(bot: &mut GridBot, pair: &Pair, token_sell: AccountId, amount_sell: Balance, amount_buy: Balance) {
@@ -254,8 +254,8 @@ impl GridBotContract {
 
     //################################## Withdraw ##################################################
     pub fn internal_withdraw_all(&mut self, user: &AccountId, token: &AccountId) {
-        let balance = self.internal_get_user_balance(&user, &token);
-        self.internal_withdraw(&user, &token, balance);
+        let balance = self.internal_get_user_balance(user, token);
+        self.internal_withdraw(user, token, balance);
     }
 
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
@@ -266,12 +266,12 @@ impl GridBotContract {
         self.internal_reduce_asset(user, token, &amount);
         if token.clone() == self.wnear {
             // wrap to near
-            self.withdraw_near(&user, amount.as_u128());
+            self.withdraw_near(user, amount.as_u128());
         } else {
             // start transfer
-            self.internal_ft_transfer(&user, &token, amount.as_u128());
+            self.internal_ft_transfer(user, token, amount.as_u128());
         }
-        emit::withdraw_started(&user, amount.as_u128(), &token);
+        emit::withdraw_started(user, amount.as_u128(), token);
     }
 
     pub fn internal_withdraw_protocol_fee(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
@@ -281,8 +281,24 @@ impl GridBotContract {
         // reduce protocol
         self.internal_reduce_protocol_fee(token, &(amount.clone()));
         // start transfer
-        self.internal_ft_transfer_protocol_fee(&user, &token, amount.as_u128());
-        emit::withdraw_protocol_fee_started(&user, amount.as_u128(), &token);
+        self.internal_ft_transfer_protocol_fee(user, token, amount.as_u128());
+        emit::withdraw_protocol_fee_started(user, amount.as_u128(), token);
+    }
+
+    pub fn internal_withdraw_refer_fee(&mut self, user: &AccountId, token: &AccountId, amount: U128) {
+        if amount.0 == 0 {
+            return;
+        }
+        // reduce protocol
+        self.internal_reduce_refer_fee(user, token, &amount);
+        // start transfer
+        self.internal_ft_transfer_refer_fee(user, token, amount.0);
+        emit::withdraw_refer_fee_started(user, amount.0, token);
+    }
+
+    pub fn internal_create_bot_refund_with_near(&mut self, user: &AccountId, pair: &Pair, near_amount: u128, reason: &str) {
+        self.internal_create_bot_refund(user, pair, reason);
+        self.internal_near_refund(user, near_amount);
     }
 
     pub fn internal_create_bot_refund(&mut self, user: &AccountId, pair: &Pair, reason: &str) {
@@ -291,24 +307,28 @@ impl GridBotContract {
         emit::create_bot_error(user, reason);
     }
 
+    pub fn internal_near_refund(&mut self, user: &AccountId, amount: u128) {
+        self.internal_ft_transfer_near(user, amount, false);
+    }
+
     pub fn internal_token_refund(&mut self, user: &AccountId, token: &AccountId, reason: &str) {
         self.internal_withdraw_all(user, token);
         emit::create_bot_error(user, reason);
     }
 
     pub fn internal_add_refer_user_recommend(&mut self, user: &AccountId, recommender: &AccountId) {
-        self.refer_user_recommender_map.insert(&user, &recommender);
+        self.refer_user_recommender_map.insert(user, recommender);
     }
 
     pub fn internal_add_refer_recommend_user(&mut self, user: &AccountId, recommender: &AccountId) {
-        if !self.refer_recommender_user_map.contains_key(&recommender) {
+        if !self.refer_recommender_user_map.contains_key(recommender) {
             let key = user.to_string() + ":ref_users";
-            self.refer_recommender_user_map.insert(&recommender, &Vector::new(key.as_bytes().to_vec()));
+            self.refer_recommender_user_map.insert(recommender, &Vector::new(key.as_bytes().to_vec()));
         }
-        let mut ref_users = self.refer_recommender_user_map.get(&recommender).unwrap();
+        let mut ref_users = self.refer_recommender_user_map.get(recommender).unwrap();
         ref_users.push(user);
 
-        self.refer_recommender_user_map.insert(&recommender, &ref_users);
+        self.refer_recommender_user_map.insert(recommender, &ref_users);
     }
 
     pub fn internal_add_refer(&mut self, user: &AccountId, recommender: &AccountId) {
@@ -374,6 +394,30 @@ impl GridBotContract {
             self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee));
         }
         return (U256C::from(protocol_fee.as_u128() - total_payed_fee), U256C::from(total_payed_fee));
+    }
+
+    pub fn internal_increase_withdraw_near_error(&mut self, user: &AccountId, amount: &U128) {
+        if !self.withdraw_near_error_map.contains_key(user) {
+            self.withdraw_near_error_map.insert(user, amount);
+            return;
+        }
+        self.withdraw_near_error_map.insert(user, &U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 + amount.0));
+    }
+
+    pub fn internal_reduce_withdraw_near_error(&mut self, user: &AccountId, amount: &U128) {
+        self.withdraw_near_error_map.insert(user, &U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 - amount.0));
+    }
+
+    pub fn internal_increase_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
+        if !self.withdraw_near_error_effect_global_map.contains_key(user) {
+            self.withdraw_near_error_effect_global_map.insert(user, amount);
+            return;
+        }
+        self.withdraw_near_error_effect_global_map.insert(user, &U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 + amount.0));
+    }
+
+    pub fn internal_reduce_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
+        self.withdraw_near_error_effect_global_map.insert(user, &U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 - amount.0));
     }
 
     // pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {

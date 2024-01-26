@@ -3,7 +3,7 @@ use crate::*;
 use near_sdk::{env, require};
 use near_sdk::json_types::U128;
 use uint::hex;
-use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
+use crate::{GridBotContract};
 use crate::big_decimal::BigDecimal;
 use crate::entity::GridType;
 use crate::entity::GridType::EqOffset;
@@ -19,57 +19,39 @@ impl GridBotContract {
                                slippage: u16,
                                entry_price: &U256C,
                                pair: &Pair,
-                               grid_bot: &mut GridBot) {
+                               grid_bot: &mut GridBot) -> bool {
         if self.status != GridStatus::Running {
             self.internal_create_bot_refund(&user, &pair, PAUSE_OR_SHUTDOWN);
-            return;
+            return false;
         }
         // require!(self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage), INVALID_PRICE);
         if !self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage) {
             self.internal_create_bot_refund(user, pair, INVALID_PRICE);
-            return;
-        }
-        // create bot id
-        let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
-        grid_bot.bot_id = next_bot_id;
-
-        // calculate all assets again
-        let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(grid_bot.first_quote_amount.clone(), grid_bot.last_base_amount.clone(), grid_bot.grid_sell_count.clone(), grid_bot.grid_buy_count.clone(),
-                                                                                                  grid_bot.grid_type.clone(), grid_bot.grid_rate.clone(), grid_bot.grid_offset.clone(), grid_bot.fill_base_or_quote.clone());
-        // require!(user.clone() == grid_bot.user, INVALID_QUOTE_AMOUNT);
-        if user.clone() != grid_bot.user {
-            self.internal_create_bot_refund(user, pair, INVALID_QUOTE_AMOUNT);
-            return;
-        }
-        // require!(base_amount_sell == grid_bot.total_base_amount, INVALID_BASE_AMOUNT);
-        if base_amount_sell != grid_bot.total_base_amount {
-            self.internal_create_bot_refund(user, pair, INVALID_BASE_AMOUNT);
-            return;
-        }
-        // require!(quote_amount_buy == grid_bot.total_quote_amount, INVALID_QUOTE_AMOUNT);
-        if quote_amount_buy != grid_bot.total_quote_amount {
-            self.internal_create_bot_refund(user, pair, INVALID_QUOTE_AMOUNT);
-            return;
+            return false;
         }
         // check balance
         // require!(self.internal_get_user_balance(user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
-        if self.internal_get_user_balance(user, &(pair.base_token)) < base_amount_sell {
+        if self.internal_get_user_balance(user, &(pair.base_token)) < grid_bot.total_base_amount {
             self.internal_create_bot_refund(user, pair, LESS_BASE_TOKEN);
-            return;
+            return false;
         }
         // require!(self.internal_get_user_balance(user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
-        if self.internal_get_user_balance(user, &(pair.quote_token)) < quote_amount_buy {
+        if self.internal_get_user_balance(user, &(pair.quote_token)) < grid_bot.total_quote_amount {
             self.internal_create_bot_refund(user, pair, LESS_QUOTE_TOKEN);
-            return;
+            return false;
         }
+
+        // create bot id
+        let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
+        grid_bot.bot_id = next_bot_id;
 
         // initial orders space, create empty orders
         let grid_count = grid_bot.grid_sell_count.clone() + grid_bot.grid_buy_count.clone();
         self.create_default_orders(grid_bot.bot_id.clone(), grid_count);
 
         // transfer assets
-        self.internal_transfer_assets_to_lock(user.clone(), pair.base_token.clone(), base_amount_sell);
-        self.internal_transfer_assets_to_lock(user.clone(), pair.quote_token.clone(), quote_amount_buy);
+        self.internal_transfer_assets_to_lock(&user, &pair.base_token, grid_bot.total_base_amount);
+        self.internal_transfer_assets_to_lock(&user, &pair.quote_token, grid_bot.total_quote_amount);
 
         // init active status of bot
         self.internal_init_bot_status(grid_bot, entry_price);
@@ -77,8 +59,8 @@ impl GridBotContract {
         // insert bot
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
-        // log!("Success create grid bot, bot id:{}", grid_bot.bot_id);
         emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
+        return true;
     }
 
     pub fn internal_take_orders(&mut self, user: &AccountId, take_order: &Order, maker_orders: Vec<OrderKeyInfo>) -> (U256C, U256C) {
@@ -131,9 +113,13 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount);
         self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
-
         self.bot_map.insert(bot_id, &bot);
 
+        // send claim event
+        if revenue.as_u128() > 0 {
+            // claim event
+            emit::claim(&user, &(bot.user), bot_id.clone(), &revenue_token, revenue);
+        }
         emit::close_bot(user, bot_id.clone());
     }
 
@@ -183,78 +169,6 @@ impl GridBotContract {
         } else {
             bot.trigger_price_above_or_below = true;
         }
-    }
-
-    pub fn internal_check_oracle_price(&self, entry_price: U256C, base_price: Price, quote_price: Price, slippage: u16) -> bool {
-        if base_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
-            return false;
-        }
-        if quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
-            return false;
-        }
-        let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
-
-        if entry_price.as_u128() >= oracle_pair_price {
-            return (entry_price.as_u128() - oracle_pair_price) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage as u128;
-        } else {
-            return (oracle_pair_price - entry_price.as_u128()) * SLIPPAGE_DENOMINATOR as u128 / entry_price.as_u128() <= slippage  as u128;
-        }
-    }
-
-    pub fn internal_check_bot_amount(&mut self, grid_sell_count: u16, grid_buy_count: u16, first_base_amount_256: U256C, first_quote_amount_256: U256C,
-                                     last_base_amount_256: U256C, last_quote_amount_256: U256C, user: &AccountId, pair: &Pair, base_amount_sell: U256C, quote_amount_buy: U256C) -> bool {
-        if grid_sell_count > 0 && grid_buy_count > 0 {
-            // require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
-            if last_quote_amount_256 * first_base_amount_256 <= first_quote_amount_256 * last_base_amount_256 {
-                self.internal_create_bot_refund(&user, &pair, INVALID_FIRST_OR_LAST_AMOUNT);
-                return false;
-            }
-        }
-        if grid_sell_count > 0 {
-            // require!(first_base_amount_256.as_u128() > 0 && first_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
-            if first_base_amount_256.as_u128() == 0 || first_quote_amount_256.as_u128() == 0 {
-                self.internal_create_bot_refund(&user, &pair, INVALID_FIRST_OR_LAST_AMOUNT);
-                return false;
-            }
-            // require!(base_amount_sell.as_u128() / grid_sell_count as u128 >= self.deposit_limit_map.get(&pair.base_token).unwrap().as_u128(), BASE_TO_SMALL);
-            if (base_amount_sell.as_u128() / grid_sell_count as u128) < self.deposit_limit_map.get(&pair.base_token).unwrap().as_u128() {
-                self.internal_create_bot_refund(&user, &pair, BASE_TO_SMALL);
-                return false;
-            }
-        }
-        if grid_buy_count > 0 {
-            // require!(last_base_amount_256.as_u128() > 0 && last_quote_amount_256.as_u128() > 0, INVALID_FIRST_OR_LAST_AMOUNT);
-            if last_base_amount_256.as_u128() == 0 || last_quote_amount_256.as_u128() == 0 {
-                self.internal_create_bot_refund(&user, &pair, INVALID_FIRST_OR_LAST_AMOUNT);
-                return false;
-            }
-            // require!(quote_amount_buy.as_u128() / grid_buy_count as u128 >= self.deposit_limit_map.get(&pair.quote_token).unwrap().as_u128(), QUOTE_TO_SMALL);
-            if (quote_amount_buy.as_u128() / grid_buy_count as u128) < self.deposit_limit_map.get(&pair.quote_token).unwrap().as_u128() {
-                self.internal_create_bot_refund(&user, &pair, QUOTE_TO_SMALL);
-                return false;
-            }
-        }
-        return true;
-    }
-
-    pub fn internal_check_bot_close_permission(&self, base_price: Price, quote_price: Price, bot: &GridBot) -> bool {
-        if base_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
-            return false;
-        }
-        if quote_price.publish_time as u64 * 1000 + self.oracle_valid_time.clone() < env::block_timestamp_ms() {
-            return false;
-        }
-        // base_price = usd amount / base amount
-        // quote_price = usd amount / quote amount
-        // oracle_pair_price = quote amount / base amount = base_price / quote_price
-        let oracle_pair_price = (BigDecimal::from(base_price.price.0 as u64) / BigDecimal::from(quote_price.price.0 as u64) * BigDecimal::from(PRICE_DENOMINATOR)).round_down_u128();
-        if oracle_pair_price >= bot.take_profit_price.as_u128() {
-            return true;
-        }
-        if oracle_pair_price <= bot.stop_loss_price.as_u128() {
-            return true;
-        }
-        return false;
     }
 
     // TODO need check again, and test

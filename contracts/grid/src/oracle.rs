@@ -187,7 +187,7 @@ impl GridBotContract {
 #[ext_contract(ext_self)]
 trait ExtSelf {
     fn get_price_for_create_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user: &AccountId,
-                                         slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot);
+                                         slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot) -> bool;
     fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user: &AccountId, pair: &Pair, grid_bot: &mut GridBot);
     fn get_price_for_trigger_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, grid_bot: &mut GridBot);
 }
@@ -198,14 +198,14 @@ impl ExtSelf for GridBotContract {
     fn get_price_for_create_bot_callback(&mut self,
                                          promise_num: usize, tokens: Vec<AccountId>, user: &AccountId,
                                          slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot,
-    ) {
+    ) -> bool {
         let price_list = self.private_get_price_list(promise_num, tokens);
         // require!(price_list.len() == PAIR_TOKEN_LENGTH, INVALID_PAIR_PRICE_LENGTH);
         if price_list.len() != PAIR_TOKEN_LENGTH {
             self.internal_create_bot_refund(user, pair, INVALID_PAIR_PRICE_LENGTH);
-            return;
+            return false;
         }
-        self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, grid_bot);
+        return self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, grid_bot);
     }
 
     #[private]

@@ -12,6 +12,7 @@ pub trait WNEARNear {
 }
 
 impl GridBotContract {
+    // note: withdraw_near just can be used by user withdraw, because, if error, will add user's balance
     pub fn withdraw_near(&mut self, user: &AccountId, amount: u128) {
         ext_wnear::ext(self.wnear.clone())
             .with_attached_deposit(1)
@@ -59,7 +60,8 @@ impl ExtSelf for GridBotContract {
     fn after_wrap_near_for_create_bot(&mut self, pair: &Pair, user: &AccountId, slippage: u16, entry_price: &U256C, grid_bot: &mut GridBot, amount: u128) -> bool {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
-            self.internal_create_bot_refund(user, pair, WRAP_TO_WNEAR_ERROR);
+            // refund token and near
+            self.internal_create_bot_refund_with_near(user, pair, amount + STORAGE_FEE, WRAP_TO_WNEAR_ERROR);
             emit::wrap_near_error(user, 0, amount, true);
         } else {
             // deposit
@@ -80,8 +82,9 @@ impl ExtSelf for GridBotContract {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::wrap_near_error(user, 0, amount, false);
+            self.internal_increase_asset(user, &self.wnear.clone(), &(U256C::from(amount)));
         } else {
-            self.internal_ft_transfer_near(user, amount);
+            self.internal_ft_transfer_near(user, amount, true);
         }
         promise_success
     }

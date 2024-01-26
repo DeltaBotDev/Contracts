@@ -23,23 +23,19 @@ impl GridBotContract {
         let stop_loss_price_256 = U256C::from(stop_loss_price.0);
         let valid_until_time_256 = U256C::from(valid_until_time.0);
         let entry_price_256 = U256C::from(entry_price.0);
+
+        require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
 
-        // require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
-        if env::attached_deposit() < STORAGE_FEE {
-            self.internal_create_bot_refund(&user, &pair, LESS_STORAGE_FEE);
-            return;
-        }
         // require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         if self.status != GridStatus::Running {
-            self.internal_create_bot_refund(&user, &pair, PAUSE_OR_SHUTDOWN);
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
             return;
         }
 
-        // require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
-        if !self.pair_map.contains_key(&pair_id) {
-            self.internal_create_bot_refund(&user, &pair, INVALID_PAIR_ID);
+        if grid_buy_count + grid_sell_count > MAX_GRID_COUNT {
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
             return;
         }
 
@@ -47,19 +43,19 @@ impl GridBotContract {
         let (base_amount_sell, quote_amount_buy) = GridBotContract::internal_calculate_bot_assets(first_quote_amount_256.clone(), last_base_amount_256.clone(), grid_sell_count.clone(), grid_buy_count.clone(),
                                                        grid_type.clone(), grid_rate.clone(), grid_offset_256.clone(), fill_base_or_quote.clone());
 
-        // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
-        // amount must u128, u128 * u128 <= u256, so, it's ok
-        if !self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
-                                       last_base_amount_256, last_quote_amount_256, &user, &pair, base_amount_sell, quote_amount_buy) {
+        // require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
+        if !self.internal_check_near_amount(&pair, env::attached_deposit(), base_amount_sell, quote_amount_buy) {
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
             return;
         }
-
-        // // check balance
-        // require!(self.internal_get_user_balance(&user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
-        // require!(self.internal_get_user_balance(&user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
-
-        // // create bot id
-        // let next_bot_id = format!("GRID:{}", self.internal_get_and_use_next_bot_id().to_string());
+        // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
+        // amount must u128, u128 * u128 <= u256, so, it's ok
+        let (result, reason) = self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
+                                                            last_base_amount_256, last_quote_amount_256, &user, &pair, base_amount_sell, quote_amount_buy);
+        if !result {
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), &reason);
+            return;
+        }
 
         // create bot
         let mut new_grid_bot = GridBot {name, active: false, user: user.clone(), bot_id: "".to_string(), closed: false, pair_id, grid_type,
@@ -69,9 +65,6 @@ impl GridBotContract {
             take_profit_price: take_profit_price_256, stop_loss_price: stop_loss_price_256, valid_until_time: valid_until_time_256,
             total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0), total_revenue: U256C::from(0)
         };
-
-        // // record storage fee
-        // self.storage_fee += env::attached_deposit();
 
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
@@ -138,6 +131,13 @@ impl GridBotContract {
         self.internal_withdraw_all(&user, &token);
     }
 
+    #[payable]
+    pub fn withdraw_refer_fee(&mut self, token: AccountId, amount: U128) {
+        assert_one_yocto();
+        let user = env::predecessor_account_id();
+        self.internal_withdraw_refer_fee(&user, &token, amount);
+    }
+
     //################################################## Operator ##################################
     pub fn add_refer(&mut self, user: AccountId, recommender: AccountId) {
         require!(env::predecessor_account_id() == self.operator_id || env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
@@ -154,6 +154,26 @@ impl GridBotContract {
         let protocol_fee = self.internal_get_protocol_fee(&token);
         require!(protocol_fee.as_u128() >= amount.0, INVALID_AMOUNT);
         self.internal_withdraw_protocol_fee(&to_user, &token, U256C::from(amount.0));
+    }
+
+    #[payable]
+    pub fn withdraw_near_error_asset(&mut self, to_user: AccountId) {
+        self.assert_owner();
+        require!(self.withdraw_near_error_map.contains_key(&to_user), INVALID_USER);
+        let balance = self.withdraw_near_error_map.get(&to_user).unwrap();
+        require!(balance.0 > 0, INVALID_AMOUNT);
+        self.internal_reduce_withdraw_near_error(&to_user, &U128::from(balance.0));
+        self.internal_ft_transfer_near(&to_user, balance.0, false);
+    }
+
+    #[payable]
+    pub fn withdraw_near_error_asset_effect_global(&mut self, to_user: AccountId) {
+        self.assert_owner();
+        require!(self.withdraw_near_error_effect_global_map.contains_key(&to_user), INVALID_USER);
+        let balance = self.withdraw_near_error_effect_global_map.get(&to_user).unwrap();
+        require!(balance.0 > 0, INVALID_AMOUNT);
+        self.internal_reduce_withdraw_near_error_effect_global(&to_user, &U128::from(balance.0));
+        self.internal_ft_transfer_near(&to_user, balance.0, true);
     }
 
     // #[payable]

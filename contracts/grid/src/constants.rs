@@ -38,3 +38,5 @@ pub const PAIR_TOKEN_LENGTH: usize = 2;
 pub const DEFAULT_ORACLE_VALID_TIME: u64 = 90000;
 
 pub const PRICE_DENOMINATOR: u128 = 1_000_000_000_000_000_000;
+
+pub const MAX_GRID_COUNT: u16 = 300;

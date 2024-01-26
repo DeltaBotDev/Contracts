@@ -72,6 +72,7 @@ impl GridBotContract {
                 )
         )
     }
+
     pub fn internal_ft_transfer_protocol_fee(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
         ext_fungible_token::ext(token_id.clone())
             .with_attached_deposit(ONE_YOCTO)
@@ -91,7 +92,26 @@ impl GridBotContract {
         )
     }
 
-    pub fn internal_ft_transfer_near(&mut self, receiver_id: &AccountId, amount: Balance) -> Promise {
+    pub fn internal_ft_transfer_refer_fee(&mut self, account_id: &AccountId, token_id: &AccountId, amount: Balance) -> Promise {
+        ext_fungible_token::ext(token_id.clone())
+            .with_attached_deposit(ONE_YOCTO)
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .ft_transfer(
+                account_id.clone(),
+                amount.into(),
+                None,
+            ).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                .after_ft_transfer_refer_fee(
+                    account_id.clone(),
+                    token_id.clone(),
+                    amount.into(),
+                )
+        )
+    }
+
+    pub fn internal_ft_transfer_near(&mut self, receiver_id: &AccountId, amount: Balance, effect_global_balance: bool) -> Promise {
         Promise::new(receiver_id.clone()).transfer(amount)
             .then(
             Self::ext(env::current_account_id())
@@ -100,6 +120,7 @@ impl GridBotContract {
                     receiver_id.clone(),
                     self.wnear.clone(),
                     amount.into(),
+                    effect_global_balance,
                 )
             )
     }
@@ -129,10 +150,12 @@ trait ExtSelf {
                              -> bool;
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
-    fn after_ft_transfer_near(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+    fn after_ft_transfer_near(&mut self, account_id: AccountId, token_id: AccountId, amount: U128, effect_global_balance: bool)
                          -> bool;
     fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
+    fn after_ft_transfer_refer_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
+                                      -> bool;
     // fn after_ft_transfer_unowned_asset(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
     //                      -> bool;
     // fn after_ft_balance_of_for_withdraw_unowned_asset(&mut self, token_id: AccountId, to_user: AccountId, #[callback_result] last_result: Result<U128, PromiseError>);
@@ -183,16 +206,22 @@ impl ExtSelf for GridBotContract {
         account_id: AccountId,
         token_id: AccountId,
         amount: U128,
+        effect_global_balance: bool,
     ) -> bool {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
-            // It has been wrapped to Near and cannot be added back. Generally it will not fail. Once it fails, it will be a big problem.
-            // self.internal_increase_asset(&account_id, &token_id, &(U256C::from(amount.clone().0)));
+            if effect_global_balance {
+                self.internal_increase_withdraw_near_error_effect_global(&account_id, &amount);
+            } else {
+                self.internal_increase_withdraw_near_error(&account_id, &amount);
+            }
         } else {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
-            // reduce from global asset
-            self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
+            if effect_global_balance {
+                // reduce from global asset
+                self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
+            }
         }
         promise_success
     }
@@ -215,6 +244,26 @@ impl ExtSelf for GridBotContract {
         }
         promise_success
     }
+
+    #[private]
+    fn after_ft_transfer_refer_fee(
+        &mut self,
+        account_id: AccountId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        let promise_success = is_promise_success();
+        if !promise_success.clone() {
+            emit::withdraw_refer_fee_failed(&account_id, amount.clone().0, &token_id);
+            self.internal_increase_refer_fee(&account_id, &token_id, &amount);
+        } else {
+            emit::withdraw_refer_fee_succeeded(&account_id, amount.clone().0, &token_id);
+            // reduce from global asset
+            self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
+        }
+        promise_success
+    }
+
 
     // #[private]
     // fn after_ft_transfer_unowned_asset(

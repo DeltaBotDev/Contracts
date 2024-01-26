@@ -23,6 +23,7 @@ mod grid_bot_asset;
 mod owner;
 mod oracle;
 mod wnear;
+mod grid_bot_check;
 
 pub use crate::constants::*;
 pub use crate::errors::*;
@@ -73,6 +74,8 @@ pub struct GridBotContract {
     pub refer_fee_map: LookupMap<AccountId, LookupMap<AccountId, U128>>,
     /// refer_fee_rate[0] = first level, refer_fee_rate[1] = second level
     pub refer_fee_rate: Vec<u32>,
+    pub withdraw_near_error_map: LookupMap<AccountId, U128>,
+    pub withdraw_near_error_effect_global_map: LookupMap<AccountId, U128>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -104,6 +107,16 @@ pub struct OldGridBotContract {
     // pub user_withdraw_failed_map: LookupMap<AccountId, LookupMap<AccountId, U256C>>,
     pub market_user_map: LookupMap<AccountId, bool>,
     pub wnear: AccountId,
+    /// post refer info and other things
+    pub operator_id: AccountId,
+    /// refer_recommender_user_map[recommender] = users
+    pub refer_recommender_user_map: LookupMap<AccountId, Vector<AccountId>>,
+    /// refer_user_recommender_map[user] = user's recommender
+    pub refer_user_recommender_map: LookupMap<AccountId, AccountId>,
+    /// refer_fee_map[user][token] = balance
+    pub refer_fee_map: LookupMap<AccountId, LookupMap<AccountId, U128>>,
+    /// refer_fee_rate[0] = first level, refer_fee_rate[1] = second level
+    pub refer_fee_rate: Vec<u32>,
 }
 
 #[near_bindgen]
@@ -139,6 +152,8 @@ impl GridBotContract {
             refer_user_recommender_map: LookupMap::new(b"user_rec".to_vec()),
             refer_fee_map: LookupMap::new(StorageKey::ReferFeeMainKey),
             refer_fee_rate: vec![],
+            withdraw_near_error_map: LookupMap::new(b"withdraw_near_err".to_vec()),
+            withdraw_near_error_effect_global_map: LookupMap::new(b"withdraw_near_err_eff_glo".to_vec()),
         }
     }
 }

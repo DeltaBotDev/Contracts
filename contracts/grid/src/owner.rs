@@ -53,10 +53,12 @@ impl GridBotContract {
         //     market_user_map: contract.market_user_map,
         //     wnear: contract.wnear,
         //     operator_id: contract.owner_id,
-        //     refer_recommender_user_map: LookupMap::new(b"rec_users".to_vec()),
-        //     refer_user_recommender_map: LookupMap::new(b"user_rec".to_vec()),
-        //     refer_fee_map: LookupMap::new(StorageKey::ReferFeeMainKey),
-        //     refer_fee_rate: vec![],
+        //     refer_recommender_user_map: contract.refer_recommender_user_map,
+        //     refer_user_recommender_map: contract.refer_user_recommender_map,
+        //     refer_fee_map: contract.refer_fee_map,
+        //     refer_fee_rate: contract.refer_fee_rate,
+        //     withdraw_near_error_map: LookupMap::new(b"withdraw_near_err".to_vec()),
+        //     withdraw_near_error_effect_global_map: LookupMap::new(b"withdraw_near_err_eff_glo".to_vec()),
         // }
     }
 }

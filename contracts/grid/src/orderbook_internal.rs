@@ -73,7 +73,7 @@ impl GridBotContract {
         // allocate refer fee
         let (protocol_fee, _) = self.internal_allocate_refer_fee(&maker_fee, &bot.user, &revenue_token);
         // handle protocol fee
-        self.internal_add_protocol_fee_from_revenue(&mut bot, &revenue_token, protocol_fee, &pair);
+        self.internal_add_protocol_fee_from_revenue(&mut bot, &revenue_token, maker_fee, protocol_fee, &pair);
 
         // update bot
         self.bot_map.insert(&bot_id, &bot);
@@ -98,7 +98,7 @@ impl GridBotContract {
         require!(maker_order.token_buy == taker_order.token_sell, INVALID_ORDER_TOKEN);
         require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
         require!(taker_order.token_sell != taker_order.token_buy, INVALID_ORDER_TOKEN);
-
+        // taker price and maker price match
         require!(BigDecimal::from(taker_order.amount_sell.as_u128()).div(BigDecimal::from(taker_order.amount_buy.as_u128())) >= BigDecimal::from(maker_order.amount_buy.as_u128()).div(BigDecimal::from(maker_order.amount_sell.as_u128())), INVALID_PRICE);
     }
 
@@ -229,6 +229,7 @@ impl GridBotContract {
         let revenue_token;
         let mut revenue;
         // TODO had made_order, maybe can use mad_order
+        // mad_order, opposite_order
         if opposite_order.fill_buy_or_sell {
             // current_filled token is forward_order's buy token
             // revenue token is forward_order's sell token
