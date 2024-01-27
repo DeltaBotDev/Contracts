@@ -72,6 +72,13 @@ impl GridBotContract {
         return token_map.get(&token).unwrap();
     }
 
+    pub fn query_recommender(&self, user: AccountId) -> Option<AccountId> {
+        if !self.refer_user_recommender_map.contains_key(&user) {
+            return None;
+        }
+        return self.refer_user_recommender_map.get(&user);
+    }
+
     // start and end, is start from 1
     pub fn query_invited_users(&self, user: AccountId, start: U128, end: U128) -> Vec<AccountId> {
         require!(start.0 >= 1, INVALID_NUM);
