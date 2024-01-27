@@ -30,9 +30,11 @@ impl GridBotContract {
                                      grid_bot: &mut GridBot, amount: u128) {
         ext_wnear::ext(self.wnear.clone())
             .with_attached_deposit(amount)
+            // .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_NEAR)
             .near_deposit()
             .then(
             Self::ext(env::current_account_id())
+                .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_NEAR)
                 .after_wrap_near_for_create_bot(
                     pair,
                     user,

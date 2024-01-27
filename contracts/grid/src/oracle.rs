@@ -151,7 +151,7 @@ impl GridBotContract {
         let (promise, tokens) = self.private_create_pair_price_request(pair);
         promise.then(
             Self::ext(env::current_account_id())
-                // .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_ORACLE)
+                .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_ORACLE)
                 .get_price_for_create_bot_callback(tokens.len(), tokens, user, slippage, entry_price, pair, grid_bot),
         );
     }

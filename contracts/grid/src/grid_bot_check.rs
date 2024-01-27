@@ -76,11 +76,30 @@ impl GridBotContract {
         return false;
     }
 
-    pub fn internal_check_near_amount(&mut self, pair: &Pair, near_amount: u128, base_amount_sell: U256C, quote_amount_buy: U256C) -> bool {
-        if pair.quote_token != self.wnear && pair.base_token != self.wnear && near_amount != STORAGE_FEE
-            || pair.base_token == self.wnear && near_amount != (base_amount_sell.as_u128() + STORAGE_FEE)
-            || pair.quote_token == self.wnear && near_amount != (quote_amount_buy.as_u128() + STORAGE_FEE) {
+    pub fn internal_check_near_amount(&mut self, user: &AccountId, pair: &Pair, near_amount: u128, base_amount_sell: U256C, quote_amount_buy: U256C) -> bool {
+        if pair.quote_token != self.wnear && pair.base_token != self.wnear && near_amount != STORAGE_FEE {
             return false;
+        }
+        let wnear_balance = self.internal_get_user_balance(&user, &self.wnear);
+        if pair.base_token == self.wnear {
+            if wnear_balance.as_u128() >= base_amount_sell.as_u128() && near_amount != STORAGE_FEE {
+                // wnear balance is enough, but user support near
+                return false;
+            }
+            if wnear_balance.as_u128() < base_amount_sell.as_u128() && near_amount != (base_amount_sell.as_u128() + STORAGE_FEE) {
+                // wnear balance is not enough, but near is less
+                return false;
+            }
+        }
+        if pair.quote_token == self.wnear {
+            if wnear_balance.as_u128() >= quote_amount_buy.as_u128() && near_amount != STORAGE_FEE {
+                // wnear balance is enough, but user support near
+                return false;
+            }
+            if wnear_balance.as_u128() < quote_amount_buy.as_u128() && near_amount != (quote_amount_buy.as_u128() + STORAGE_FEE) {
+                // wnear balance is not enough, but near is less
+                return false;
+            }
         }
         // if wnear not register, will revert, it's ok
         let wnear_min_deposit = self.deposit_limit_map.get(&self.wnear).unwrap();

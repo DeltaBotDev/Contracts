@@ -6,7 +6,8 @@ pub const ONE_YOCTO: Balance = 1;
 
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas(Gas::ONE_TERA.0 * 10);
 pub const GAS_FOR_AFTER_FT_TRANSFER: Gas = Gas(Gas::ONE_TERA.0 * 20);
-pub const GAS_FOR_CREATE_BOT_AFTER_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 250);
+pub const GAS_FOR_CREATE_BOT_AFTER_NEAR: Gas = Gas(Gas::ONE_TERA.0 * 250);
+pub const GAS_FOR_CREATE_BOT_AFTER_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 200);
 pub const GAS_FOR_AFTER_ORACLE: Gas = Gas(Gas::ONE_TERA.0 * 20);
 
 /// slippage denominator

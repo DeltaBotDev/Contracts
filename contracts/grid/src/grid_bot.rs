@@ -44,7 +44,7 @@ impl GridBotContract {
                                                        grid_type.clone(), grid_rate.clone(), grid_offset_256.clone(), fill_base_or_quote.clone());
 
         // require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
-        if !self.internal_check_near_amount(&pair, env::attached_deposit(), base_amount_sell, quote_amount_buy) {
+        if !self.internal_check_near_amount(&user, &pair, env::attached_deposit(), base_amount_sell, quote_amount_buy) {
             self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
             return;
         }
