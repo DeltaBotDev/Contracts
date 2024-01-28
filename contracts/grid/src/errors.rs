@@ -53,6 +53,8 @@ pub const WRAP_TO_WNEAR_ERROR: &str = "WRAP_TO_WNEAR_ERROR";
 pub const ADDED_RECOMMEND: &str = "ADDED_RECOMMEND";
 pub const INVALID_NUM: &str = "INVALID_NUM";
 pub const GRID_COUNT_TOO_MUCH: &str = "GRID_COUNT_TOO_MUCH";
+pub const INVALID_STATUS: &str = "INVALID_STATUS";
+
 
 
 

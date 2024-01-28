@@ -1,8 +1,10 @@
 use crate::*;
-use near_sdk::{assert_one_yocto, near_bindgen, require};
+use near_sdk::{assert_one_yocto, Gas, near_bindgen, Promise, require};
 use near_sdk::json_types::U128;
+use serde_json::json;
 use crate::entity::{GridType};
 use crate::events::emit;
+use crate::GridStatus::Shutdown;
 
 #[near_bindgen]
 impl GridBotContract {
@@ -142,6 +144,7 @@ impl GridBotContract {
     pub fn add_refer(&mut self, user: AccountId, recommender: AccountId) {
         require!(env::predecessor_account_id() == self.operator_id || env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
         require!(!self.refer_user_recommender_map.contains_key(&user), ADDED_RECOMMEND);
+        require!(user != recommender, INVALID_USER);
         self.internal_add_refer(&user, &recommender);
     }
 
@@ -154,6 +157,13 @@ impl GridBotContract {
         let protocol_fee = self.internal_get_protocol_fee(&token);
         require!(protocol_fee.as_u128() >= amount.0, INVALID_AMOUNT);
         self.internal_withdraw_protocol_fee(&to_user, &token, U256C::from(amount.0));
+    }
+
+    #[payable]
+    pub fn withdraw_near_after_shutdown(&mut self, to_user: AccountId, amount: U128) {
+        require!(self.status == Shutdown, INVALID_STATUS);
+        self.assert_owner();
+        self.internal_ft_transfer_near_without_result(&to_user, amount.0);
     }
 
     #[payable]
@@ -176,26 +186,25 @@ impl GridBotContract {
         self.internal_ft_transfer_near(&to_user, balance.0, true);
     }
 
-    // #[payable]
-    // pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
-    //     self.assert_owner();
-    //     require!(self.status != GridStatus::Shutdown, PAUSE_OR_SHUTDOWN);
-    //     Promise::new(token.clone())
-    //         .function_call(
-    //             "ft_balance_of".to_string(),
-    //             json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
-    //             0,
-    //             Gas(0),
-    //         )
-    //         .then(
-    //             Self::ext(self.owner_id.clone())
-    //                 .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
-    //                 .after_ft_balance_of_for_withdraw_unowned_asset(
-    //                     token.clone(),
-    //                     to_user,
-    //                 )
-    //         );
-    // }
+    #[payable]
+    pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
+        self.assert_owner();
+        Promise::new(token.clone())
+            .function_call(
+                "ft_balance_of".to_string(),
+                json!({"account_id": env::current_account_id()}).to_string().into_bytes(),
+                0,
+                Gas(0),
+            )
+            .then(
+                Self::ext(self.owner_id.clone())
+                    .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
+                    .after_ft_balance_of_for_withdraw_unowned_asset(
+                        token.clone(),
+                        to_user,
+                    )
+            );
+    }
 
     #[payable]
     pub fn set_protocol_fee_rate(&mut self, new_protocol_fee_rate: U128, new_taker_fee_rate: U128) {
@@ -286,4 +295,5 @@ impl GridBotContract {
         self.assert_owner();
         self.refer_fee_rate = new_refer_fee_rate;
     }
+
 }

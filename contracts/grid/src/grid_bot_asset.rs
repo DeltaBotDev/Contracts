@@ -420,8 +420,8 @@ impl GridBotContract {
         self.withdraw_near_error_effect_global_map.insert(user, &U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 - amount.0));
     }
 
-    // pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
-    //     self.internal_ft_transfer_unowned_asset(&user, &token, amount.as_u128());
-    //     emit::withdraw_unowned_asset_started(&user, amount.as_u128(), &token);
-    // }
+    pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+        self.internal_ft_transfer_unowned_asset(&user, &token, amount.as_u128());
+        emit::withdraw_unowned_asset_started(&user, amount.as_u128(), &token);
+    }
 }
