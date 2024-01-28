@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::{env};
+use near_sdk::{env, log};
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::oracle::{Price};
@@ -103,8 +103,8 @@ impl GridBotContract {
         }
         // if wnear not register, will revert, it's ok
         let wnear_min_deposit = self.deposit_limit_map.get(&self.wnear).unwrap();
-        if pair.base_token == self.wnear && base_amount_sell.as_u128() < wnear_min_deposit.as_u128()
-            || pair.quote_token == self.wnear && quote_amount_buy.as_u128() < wnear_min_deposit.as_u128()  {
+        if pair.base_token == self.wnear && base_amount_sell.as_u128() > 0 && base_amount_sell.as_u128() < wnear_min_deposit.as_u128()
+            || pair.quote_token == self.wnear && quote_amount_buy.as_u128() > 0 && quote_amount_buy.as_u128() < wnear_min_deposit.as_u128()  {
             return false;
         }
         return true;
