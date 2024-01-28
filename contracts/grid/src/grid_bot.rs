@@ -37,7 +37,7 @@ impl GridBotContract {
         }
 
         if grid_buy_count + grid_sell_count > MAX_GRID_COUNT {
-            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), MORE_THAN_MAX_GRID_COUNT);
             return;
         }
 
@@ -47,7 +47,7 @@ impl GridBotContract {
 
         // require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
         if !self.internal_check_near_amount(&user, &pair, env::attached_deposit(), base_amount_sell, quote_amount_buy) {
-            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), PAUSE_OR_SHUTDOWN);
+            self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), INVALID_AMOUNT);
             return;
         }
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
