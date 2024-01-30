@@ -1,5 +1,5 @@
 use crate::*;
-use near_sdk::{env, log};
+use near_sdk::{env};
 use crate::{GridBotContract, SLIPPAGE_DENOMINATOR};
 use crate::big_decimal::BigDecimal;
 use crate::oracle::{Price};

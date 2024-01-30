@@ -222,7 +222,7 @@ impl GridBotContract {
     }
 
     pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: U256C) -> (AccountId, U256C, U256C) {
-        if forward_or_reverse {
+        if forward_or_reverse || opposite_order.amount_sell.as_u128() == 0 || opposite_order.amount_buy.as_u128() == 0 {
             return (opposite_order.token_sell, U256C::from(0), U256C::from(0));
         }
         // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
