@@ -89,6 +89,7 @@ impl GridBotContract {
         assert_one_yocto();
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
+        require!(!bot.closed, INVALID_BOT_STATUS);
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
         // check permission, user self close or take profit or stop loss
         // let user = env::predecessor_account_id();
@@ -101,6 +102,7 @@ impl GridBotContract {
     pub fn auto_close_bot(&mut self, bot_id: String) {
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
+        require!(!bot.closed, INVALID_BOT_STATUS);
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
 
         self.get_price_for_close_bot(&env::predecessor_account_id(), &pair, &mut bot);
