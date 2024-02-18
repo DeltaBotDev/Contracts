@@ -26,6 +26,8 @@ impl GridBotContract {
         let valid_until_time_256 = U256C::from(valid_until_time.0);
         let entry_price_256 = U256C::from(entry_price.0);
 
+        require!(valid_until_time.0 > env::block_timestamp_ms() as u128, INVALID_UNTIL_TIME);
+
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
         let user = env::predecessor_account_id();
