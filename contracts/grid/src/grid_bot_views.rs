@@ -58,7 +58,7 @@ impl GridBotContract {
         if !self.deposit_limit_map.contains_key(&token) {
             return U128::from(0);
         }
-        return U128::from(self.protocol_fee_rate.clone());
+        return U128::from(self.deposit_limit_map.get(&token).unwrap().as_u128());
     }
 
     pub fn query_refer_fee(&self, user: AccountId, token: AccountId) -> U128 {

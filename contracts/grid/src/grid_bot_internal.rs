@@ -24,18 +24,15 @@ impl GridBotContract {
             self.internal_create_bot_refund(&user, &pair, PAUSE_OR_SHUTDOWN);
             return false;
         }
-        // require!(self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage), INVALID_PRICE);
         if !self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage) {
             self.internal_create_bot_refund(user, pair, INVALID_PRICE);
             return false;
         }
         // check balance
-        // require!(self.internal_get_user_balance(user, &(pair.base_token)) >= base_amount_sell, LESS_BASE_TOKEN);
         if self.internal_get_user_balance(user, &(pair.base_token)) < grid_bot.total_base_amount {
             self.internal_create_bot_refund(user, pair, LESS_BASE_TOKEN);
             return false;
         }
-        // require!(self.internal_get_user_balance(user, &(pair.quote_token)) >= quote_amount_buy, LESS_QUOTE_TOKEN);
         if self.internal_get_user_balance(user, &(pair.quote_token)) < grid_bot.total_quote_amount {
             self.internal_create_bot_refund(user, pair, LESS_QUOTE_TOKEN);
             return false;
