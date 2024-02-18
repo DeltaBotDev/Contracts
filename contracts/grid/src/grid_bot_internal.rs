@@ -21,20 +21,20 @@ impl GridBotContract {
                                pair: &Pair,
                                grid_bot: &mut GridBot) -> bool {
         if self.status != GridStatus::Running {
-            self.internal_create_bot_refund(&user, &pair, PAUSE_OR_SHUTDOWN);
+            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, PAUSE_OR_SHUTDOWN);
             return false;
         }
         if !self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage) {
-            self.internal_create_bot_refund(user, pair, INVALID_PRICE);
+            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, INVALID_PRICE);
             return false;
         }
         // check balance
         if self.internal_get_user_balance(user, &(pair.base_token)) < grid_bot.total_base_amount {
-            self.internal_create_bot_refund(user, pair, LESS_BASE_TOKEN);
+            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, LESS_BASE_TOKEN);
             return false;
         }
         if self.internal_get_user_balance(user, &(pair.quote_token)) < grid_bot.total_quote_amount {
-            self.internal_create_bot_refund(user, pair, LESS_QUOTE_TOKEN);
+            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, LESS_QUOTE_TOKEN);
             return false;
         }
 

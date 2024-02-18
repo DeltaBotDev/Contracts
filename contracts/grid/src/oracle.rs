@@ -202,7 +202,7 @@ impl ExtSelf for GridBotContract {
         let price_list = self.private_get_price_list(promise_num, tokens);
         // require!(price_list.len() == PAIR_TOKEN_LENGTH, INVALID_PAIR_PRICE_LENGTH);
         if price_list.len() != PAIR_TOKEN_LENGTH {
-            self.internal_create_bot_refund(user, pair, INVALID_PAIR_PRICE_LENGTH);
+            self.internal_create_bot_refund_with_near(user, pair, STORAGE_FEE, INVALID_PAIR_PRICE_LENGTH);
             return false;
         }
         return self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, grid_bot);
