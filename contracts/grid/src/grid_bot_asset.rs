@@ -16,8 +16,12 @@ impl GridBotContract {
         });
 
         let balance = user_balances.get(token).unwrap_or(U256C::from(0));
-        user_balances.insert(token, &(balance - amount));
-
+        let new_balance = balance - amount;
+        if new_balance.as_u128() == 0 {
+            user_balances.remove(token);
+        } else {
+            user_balances.insert(token, &new_balance);
+        }
         self.user_balances_map.insert(user, &user_balances);
     }
 
@@ -33,32 +37,6 @@ impl GridBotContract {
 
         self.user_balances_map.insert(user, &user_balances);
     }
-
-    // pub fn internal_reduce_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-    //     let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
-    //         let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
-    //         map.insert(token, &U256C::from(0));
-    //         map
-    //     });
-    //
-    //     let balance = user_balances.get(token).unwrap_or(U256C::from(0));
-    //     user_balances.insert(token, &(balance - amount));
-    //
-    //     self.user_withdraw_failed_map.insert(user, &user_balances);
-    // }
-
-    // pub fn internal_increase_withdraw_failed_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-    //     let mut user_balances = self.user_withdraw_failed_map.get(user).unwrap_or_else(|| {
-    //         let mut map = LookupMap::new(StorageKey::WithdrawFailedSubKey(user.clone()));
-    //         map.insert(token, &U256C::from(0));
-    //         map
-    //     });
-    //
-    //     let balance = user_balances.get(token).unwrap_or(U256C::from(0));
-    //     user_balances.insert(token, &(balance + amount));
-    //
-    //     self.user_withdraw_failed_map.insert(user, &user_balances);
-    // }
 
     pub fn internal_increase_global_asset(&mut self, token: &AccountId, amount: &U256C) {
         let balance = self.global_balances_map.get(token).unwrap();
@@ -88,10 +66,6 @@ impl GridBotContract {
         if *amount == U256C::from(0) {
             return;
         }
-        // let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        // let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        // *locked_balance += *amount;
-
         let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
             let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
             map.insert(token, &U256C::from(0));
@@ -108,10 +82,6 @@ impl GridBotContract {
         if *amount == U256C::from(0) {
             return;
         }
-        // let user_locked_balances = self.user_locked_balances_map.get_mut(&user).unwrap();
-        // let locked_balance = user_locked_balances.get_mut(&token).unwrap();
-        // *locked_balance -= *amount;
-
         let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
             let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
             map.insert(token, &U256C::from(0));
@@ -119,8 +89,12 @@ impl GridBotContract {
         });
 
         let balance = user_locked_balances.get(token).unwrap_or(U256C::from(0));
-        user_locked_balances.insert(token, &(balance - amount));
-
+        let new_balance = balance - amount;
+        if new_balance.as_u128() == 0 {
+            user_locked_balances.remove(token);
+        } else {
+            user_locked_balances.insert(token, &new_balance);
+        }
         self.user_locked_balances_map.insert(user, &user_locked_balances);
     }
 
@@ -135,31 +109,17 @@ impl GridBotContract {
         if amount == U256C::from(0) {
             return;
         }
-        // let user_balances = self.user_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        // let balance = user_balances.entry(token.clone()).or_insert(U256C::from(0));
-        // *balance += amount.clone();
         self.internal_increase_asset(user, token, &amount);
-
-        // let user_locked_balances = self.user_locked_balances_map.entry(user.clone()).or_insert_with(HashMap::new);
-        // let locked_balance = user_locked_balances.entry(token.clone()).or_insert(U256C::from(0));
-        // *locked_balance -= amount;
 
         self.internal_reduce_locked_assets(user, token, &amount);
     }
 
     pub fn internal_add_protocol_fee_from_revenue(&mut self, bot: &mut GridBot, token: &AccountId, maker_fee: U256C, protocol_fee: U256C, pair: &Pair) {
-        // if !self.protocol_fee_map.contains_key(token) {
-        //     self.protocol_fee_map.insert(&token, &U256C::from(0));
-        // }
-        // let bot_mut = self.bot_map.get_mut(&bot_id).unwrap();
-        // let user = bot_mut.user.clone();
         let user = bot.user.clone();
         // reduce bot's asset
         if *token == pair.base_token {
-            // bot_mut.total_base_amount -= U256C::from(fee.clone());
             bot.total_base_amount -= maker_fee.clone();
         } else {
-            // bot_mut.total_quote_amount -= U256C::from(fee.clone());
             bot.total_quote_amount -= maker_fee.clone();
         }
         // reduce user's lock asset
@@ -361,7 +321,12 @@ impl GridBotContract {
         }
         let mut tokens_map = self.refer_fee_map.get(user).unwrap();
         require!(tokens_map.contains_key(token), INVALID_TOKEN);
-        tokens_map.insert(token, &U128::from(tokens_map.get(token).unwrap().0 - amount.clone().0));
+        let new_refer_fee = U128::from(tokens_map.get(token).unwrap().0 - amount.clone().0);
+        if new_refer_fee.0 == 0 {
+            tokens_map.remove(token);
+        } else {
+            tokens_map.insert(token, &new_refer_fee);
+        }
         self.refer_fee_map.insert(user, &tokens_map);
     }
 
@@ -405,7 +370,12 @@ impl GridBotContract {
     }
 
     pub fn internal_reduce_withdraw_near_error(&mut self, user: &AccountId, amount: &U128) {
-        self.withdraw_near_error_map.insert(user, &U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 - amount.0));
+        let new_balance = U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 - amount.0);
+        if new_balance.0 == 0 {
+            self.withdraw_near_error_map.remove(user);
+        } else {
+            self.withdraw_near_error_map.insert(user, &new_balance);
+        }
     }
 
     pub fn internal_increase_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
@@ -417,7 +387,12 @@ impl GridBotContract {
     }
 
     pub fn internal_reduce_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
-        self.withdraw_near_error_effect_global_map.insert(user, &U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 - amount.0));
+        let new_balance = U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 - amount.0);
+        if new_balance.0 == 0 {
+            self.withdraw_near_error_effect_global_map.remove(user);
+        } else {
+            self.withdraw_near_error_effect_global_map.insert(user, &new_balance);
+        }
     }
 
     pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
