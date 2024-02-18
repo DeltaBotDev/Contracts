@@ -15,7 +15,7 @@ impl GridBotContract {
     // note: withdraw_near just can be used by user withdraw, because, if error, will add user's balance
     pub fn withdraw_near(&mut self, user: &AccountId, amount: u128) {
         ext_wnear::ext(self.wnear.clone())
-            .with_attached_deposit(1)
+            .with_attached_deposit(ONE_YOCTO)
             .near_withdraw(U128::from(amount))
             .then(
                 Self::ext(env::current_account_id())

@@ -108,7 +108,9 @@ impl GridBotContract {
         self.get_price_for_close_bot(&env::predecessor_account_id(), &pair, &mut bot);
     }
 
+    #[payable]
     pub fn claim(&mut self, bot_id: String) {
+        assert_one_yocto();
         require!(self.bot_map.contains_key(&bot_id), BOT_NOT_EXIST);
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         let pair = self.pair_map.get(&(bot.pair_id)).unwrap().clone();
