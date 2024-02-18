@@ -199,7 +199,7 @@ impl GridBotContract {
                 Gas(0),
             )
             .then(
-                Self::ext(self.owner_id.clone())
+                Self::ext(env::current_account_id())
                     .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
                     .after_ft_balance_of_for_withdraw_unowned_asset(
                         token.clone(),
