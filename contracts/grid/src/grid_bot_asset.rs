@@ -9,12 +9,7 @@ use crate::errors::*;
 impl GridBotContract {
     // ############################### Increase or Reduce Asset ####################################
     pub fn internal_reduce_asset(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        let mut user_balances = self.user_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(StorageKey::UserBalanceSubKey(user.clone()));
-            map.insert(token, &U256C::from(0));
-            map
-        });
-
+        let mut user_balances = self.user_balances_map.get(user).unwrap();
         let balance = user_balances.get(token).unwrap_or(U256C::from(0));
         let new_balance = balance - amount;
         if new_balance.as_u128() == 0 {
@@ -82,11 +77,7 @@ impl GridBotContract {
         if *amount == U256C::from(0) {
             return;
         }
-        let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
-            let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
-            map.insert(token, &U256C::from(0));
-            map
-        });
+        let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap();
 
         let balance = user_locked_balances.get(token).unwrap_or(U256C::from(0));
         let new_balance = balance - amount;
