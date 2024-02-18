@@ -222,11 +222,11 @@ impl GridBotContract {
     }
 
     pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: U256C) -> (AccountId, U256C, U256C) {
+        let revenue_token = if opposite_order.fill_buy_or_sell { opposite_order.token_sell } else { opposite_order.token_buy };
         if forward_or_reverse || opposite_order.amount_sell.as_u128() == 0 || opposite_order.amount_buy.as_u128() == 0 {
-            return (opposite_order.token_sell, U256C::from(0), U256C::from(0));
+            return (revenue_token, U256C::from(0), U256C::from(0));
         }
         // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
-        let revenue_token;
         let mut revenue;
         // TODO had made_order, maybe can use mad_order
         // mad_order, opposite_order
@@ -236,7 +236,6 @@ impl GridBotContract {
             let forward_sold = current_filled.clone() * opposite_order.amount_sell / opposite_order.amount_buy;
             let reverse_bought = current_filled.clone() * order.amount_buy / order.amount_sell;
             require!(reverse_bought >= forward_sold, INVALID_REVENUE);
-            revenue_token = opposite_order.token_sell;
             revenue = reverse_bought - forward_sold;
         } else {
             // current_filled token is forward_order's sell token
@@ -244,7 +243,6 @@ impl GridBotContract {
             let forward_bought = current_filled.clone() * opposite_order.amount_buy / opposite_order.amount_sell;
             let reverse_sold = current_filled.clone() * order.amount_sell / order.amount_buy;
             require!(forward_bought >= reverse_sold, INVALID_REVENUE);
-            revenue_token = opposite_order.token_buy;
             revenue = forward_bought - reverse_sold;
         };
         let protocol_fee = revenue * U256C::from(self.protocol_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR);
