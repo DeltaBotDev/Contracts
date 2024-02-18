@@ -49,7 +49,6 @@ impl GridBotContract {
             }
             // require!(quote_amount_buy.as_u128() / grid_buy_count as u128 >= self.deposit_limit_map.get(&pair.quote_token).unwrap().as_u128(), QUOTE_TO_SMALL);
             if (quote_amount_buy.as_u128() / grid_buy_count as u128) < self.deposit_limit_map.get(&pair.quote_token).unwrap().as_u128() {
-                self.internal_create_bot_refund(&user, &pair, QUOTE_TOO_SMALL);
                 return (false, QUOTE_TOO_SMALL.to_string());
             }
         }
