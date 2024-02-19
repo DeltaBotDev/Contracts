@@ -112,20 +112,16 @@ impl GridBotContract {
     }
 
     pub fn internal_ft_transfer_near(&mut self, receiver_id: &AccountId, amount: Balance, effect_global_balance: bool) -> Promise {
+        require!(self.internal_get_remaining_gas() >= GAS_FOR_FT_TRANSFER, LESS_GAS);
+        if effect_global_balance {
+            // reduce from global asset
+            self.internal_reduce_global_asset(&self.wnear.clone(), &(U256C::from(amount)))
+        }
         Promise::new(receiver_id.clone()).transfer(amount)
-            .then(
-            Self::ext(env::current_account_id())
-                .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
-                .after_ft_transfer_near(
-                    receiver_id.clone(),
-                    self.wnear.clone(),
-                    amount.into(),
-                    effect_global_balance,
-                )
-            )
     }
 
     pub fn internal_ft_transfer_near_without_result(&mut self, receiver_id: &AccountId, amount: Balance) -> Promise {
+        require!(self.internal_get_remaining_gas() >= GAS_FOR_FT_TRANSFER, LESS_GAS);
         Promise::new(receiver_id.clone()).transfer(amount)
     }
 
@@ -154,8 +150,6 @@ trait ExtSelf {
     fn after_storage_deposit(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                              -> bool;
     fn after_ft_transfer(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
-                         -> bool;
-    fn after_ft_transfer_near(&mut self, account_id: AccountId, token_id: AccountId, amount: U128, effect_global_balance: bool)
                          -> bool;
     fn after_ft_transfer_protocol_fee(&mut self, account_id: AccountId, token_id: AccountId, amount: U128)
                          -> bool;
@@ -201,32 +195,6 @@ impl ExtSelf for GridBotContract {
             emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset
             self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
-        }
-        promise_success
-    }
-
-    #[private]
-    fn after_ft_transfer_near(
-        &mut self,
-        account_id: AccountId,
-        token_id: AccountId,
-        amount: U128,
-        effect_global_balance: bool,
-    ) -> bool {
-        let promise_success = is_promise_success();
-        if !promise_success.clone() {
-            emit::withdraw_failed(&account_id, amount.clone().0, &token_id);
-            if effect_global_balance {
-                self.internal_increase_withdraw_near_error_effect_global(&account_id, &amount);
-            } else {
-                self.internal_increase_withdraw_near_error(&account_id, &amount);
-            }
-        } else {
-            emit::withdraw_succeeded(&account_id, amount.clone().0, &token_id);
-            if effect_global_balance {
-                // reduce from global asset
-                self.internal_reduce_global_asset(&token_id, &(U256C::from(amount.clone().0)))
-            }
         }
         promise_success
     }

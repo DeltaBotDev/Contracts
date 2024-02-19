@@ -372,40 +372,6 @@ impl GridBotContract {
         return (U256C::from(protocol_fee.as_u128() - total_payed_fee), U256C::from(total_payed_fee));
     }
 
-    pub fn internal_increase_withdraw_near_error(&mut self, user: &AccountId, amount: &U128) {
-        if !self.withdraw_near_error_map.contains_key(user) {
-            self.withdraw_near_error_map.insert(user, amount);
-            return;
-        }
-        self.withdraw_near_error_map.insert(user, &U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 + amount.0));
-    }
-
-    pub fn internal_reduce_withdraw_near_error(&mut self, user: &AccountId, amount: &U128) {
-        let new_balance = U128::from(self.withdraw_near_error_map.get(&user).unwrap().0 - amount.0);
-        if new_balance.0 == 0 {
-            self.withdraw_near_error_map.remove(user);
-        } else {
-            self.withdraw_near_error_map.insert(user, &new_balance);
-        }
-    }
-
-    pub fn internal_increase_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
-        if !self.withdraw_near_error_effect_global_map.contains_key(user) {
-            self.withdraw_near_error_effect_global_map.insert(user, amount);
-            return;
-        }
-        self.withdraw_near_error_effect_global_map.insert(user, &U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 + amount.0));
-    }
-
-    pub fn internal_reduce_withdraw_near_error_effect_global(&mut self, user: &AccountId, amount: &U128) {
-        let new_balance = U128::from(self.withdraw_near_error_effect_global_map.get(user).unwrap().0 - amount.0);
-        if new_balance.0 == 0 {
-            self.withdraw_near_error_effect_global_map.remove(user);
-        } else {
-            self.withdraw_near_error_effect_global_map.insert(user, &new_balance);
-        }
-    }
-
     pub fn internal_withdraw_unowned_asset(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
         self.internal_ft_transfer_unowned_asset(&user, &token, amount.as_u128());
         emit::withdraw_unowned_asset_started(&user, amount.as_u128(), &token);

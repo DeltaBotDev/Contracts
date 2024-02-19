@@ -178,26 +178,6 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn withdraw_near_error_asset(&mut self, to_user: AccountId) {
-        self.assert_owner();
-        require!(self.withdraw_near_error_map.contains_key(&to_user), INVALID_USER);
-        let balance = self.withdraw_near_error_map.get(&to_user).unwrap();
-        require!(balance.0 > 0, INVALID_AMOUNT);
-        self.internal_reduce_withdraw_near_error(&to_user, &U128::from(balance.0));
-        self.internal_ft_transfer_near(&to_user, balance.0, false);
-    }
-
-    #[payable]
-    pub fn withdraw_near_error_asset_effect_global(&mut self, to_user: AccountId) {
-        self.assert_owner();
-        require!(self.withdraw_near_error_effect_global_map.contains_key(&to_user), INVALID_USER);
-        let balance = self.withdraw_near_error_effect_global_map.get(&to_user).unwrap();
-        require!(balance.0 > 0, INVALID_AMOUNT);
-        self.internal_reduce_withdraw_near_error_effect_global(&to_user, &U128::from(balance.0));
-        self.internal_ft_transfer_near(&to_user, balance.0, true);
-    }
-
-    #[payable]
     pub fn withdraw_unowned_asset(&mut self, token: AccountId, to_user: AccountId) {
         self.assert_owner();
         Promise::new(token.clone())

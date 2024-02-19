@@ -1,4 +1,5 @@
-use near_sdk::{AccountId};
+use near_sdk::{AccountId, env, Gas};
+use near_sdk::json_types::U128;
 use crate::{GridBotContract, U256C};
 
 impl GridBotContract {
@@ -39,4 +40,11 @@ impl GridBotContract {
     pub fn internal_get_recommender(&self, user: &AccountId) -> Option<AccountId> {
         return self.refer_user_recommender_map.get(user);
     }
+
+    pub fn internal_get_remaining_gas(&self) -> Gas {
+        let prepaid_gas = env::prepaid_gas();
+        let used_gas = env::used_gas();
+        return prepaid_gas - used_gas;
+    }
+
 }
