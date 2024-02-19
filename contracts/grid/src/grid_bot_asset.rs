@@ -1,4 +1,4 @@
-use near_sdk::{AccountId, Balance, require};
+use near_sdk::{AccountId, Balance, env, Promise, require};
 use near_sdk::collections::{LookupMap, Vector};
 use near_sdk::json_types::U128;
 use crate::{GridBot, GridBotContract, PROTOCOL_FEE_DENOMINATOR, StorageKey, TakeRequest, U256C};
@@ -260,6 +260,26 @@ impl GridBotContract {
 
     pub fn internal_near_refund(&mut self, user: &AccountId, amount: u128) {
         self.internal_ft_transfer_near(user, amount, false);
+    }
+
+    pub fn internal_refund_storage_fee(&mut self, reserved_storage_fee: u128, storage_used: u64) {
+        //get how much it would cost to store the information
+        let required_cost = env::storage_byte_cost() * Balance::from(storage_used);
+
+        //make sure that the attached deposit is greater than or equal to the required cost
+        assert!(
+            required_cost <= reserved_storage_fee,
+            "Must attach {} yoctoNEAR to cover storage",
+            required_cost,
+        );
+
+        //get the refund amount from the attached deposit - required cost
+        let refund = reserved_storage_fee - required_cost;
+
+        //if the refund is greater than 1 yocto NEAR, we refund the predecessor that amount
+        if refund > 1 {
+            Promise::new(env::predecessor_account_id()).transfer(refund);
+        }
     }
 
     pub fn internal_token_refund(&mut self, user: &AccountId, token: &AccountId, reason: &str) {

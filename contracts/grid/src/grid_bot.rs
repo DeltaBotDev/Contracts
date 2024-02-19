@@ -149,11 +149,14 @@ impl GridBotContract {
     //################################################## Operator ##################################
     #[payable]
     pub fn add_refer(&mut self, user: AccountId, recommender: AccountId) {
-        require!(env::attached_deposit() == STORAGE_FEE, LESS_STORAGE_FEE);
+        require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
         require!(env::predecessor_account_id() == self.operator_id || env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
         require!(!self.refer_user_recommender_map.contains_key(&user), ADDED_RECOMMEND);
         require!(user != recommender, INVALID_USER);
+        let initial_storage_usage = env::storage_usage();
         self.internal_add_refer(&user, &recommender);
+        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
+        self.internal_refund_storage_fee(env::attached_deposit(), required_storage_in_bytes);
     }
 
     //################################################## Owner #####################################
