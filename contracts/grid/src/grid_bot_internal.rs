@@ -338,14 +338,13 @@ impl GridBotContract {
                 return false;
             }
             return true
-        } else if pair.quote_token == self.wnear {
+        } else {
             // query balance
             if wnear_balance >= quote_amount {
                 return false;
             }
             return true
         }
-        return true;
     }
 
     fn private_calculate_rate_bot_geometric_series_sum(n: u64, delta_r: u64) -> BigDecimal {
