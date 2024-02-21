@@ -14,7 +14,7 @@ impl GridBotContract {
                       grid_rate: u16, grid_offset: U128, first_base_amount: U128, first_quote_amount: U128,
                       last_base_amount: U128, last_quote_amount: U128, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128, take_profit_price: U128, stop_loss_price: U128, valid_until_time: U128,
-                      entry_price: U128, recommender: AccountId) {
+                      entry_price: U128, recommender: Option<AccountId>) {
         let grid_offset_256 = U256C::from(grid_offset.0);
         let first_base_amount_256 = U256C::from(first_base_amount.0);
         let first_quote_amount_256 = U256C::from(first_quote_amount.0);
@@ -71,7 +71,7 @@ impl GridBotContract {
         };
 
         // add recommender
-        self.internal_add_referral_user(&recommender, &user);
+        self.internal_add_referral_user(recommender, &user);
 
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
