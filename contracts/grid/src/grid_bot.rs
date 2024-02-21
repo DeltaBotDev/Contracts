@@ -14,7 +14,7 @@ impl GridBotContract {
                       grid_rate: u16, grid_offset: U128, first_base_amount: U128, first_quote_amount: U128,
                       last_base_amount: U128, last_quote_amount: U128, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128, take_profit_price: U128, stop_loss_price: U128, valid_until_time: U128,
-                      entry_price: U128) {
+                      entry_price: U128, recommender: AccountId) {
         let grid_offset_256 = U256C::from(grid_offset.0);
         let first_base_amount_256 = U256C::from(first_base_amount.0);
         let first_quote_amount_256 = U256C::from(first_quote_amount.0);
@@ -69,6 +69,9 @@ impl GridBotContract {
             take_profit_price: take_profit_price_256, stop_loss_price: stop_loss_price_256, valid_until_time: valid_until_time_256,
             total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0), total_revenue: U256C::from(0)
         };
+
+        // add recommender
+        self.internal_add_referral_user(&recommender, &user);
 
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
@@ -144,19 +147,6 @@ impl GridBotContract {
         assert_one_yocto();
         let user = env::predecessor_account_id();
         self.internal_withdraw_refer_fee(&user, &token, amount);
-    }
-
-    //################################################## Operator ##################################
-    #[payable]
-    pub fn add_refer(&mut self, user: AccountId, recommender: AccountId) {
-        require!(env::attached_deposit() >= STORAGE_FEE, LESS_STORAGE_FEE);
-        require!(env::predecessor_account_id() == self.operator_id || env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
-        require!(!self.refer_user_recommender_map.contains_key(&user), ADDED_RECOMMEND);
-        require!(user != recommender, INVALID_USER);
-        let initial_storage_usage = env::storage_usage();
-        self.internal_add_refer(&user, &recommender);
-        let required_storage_in_bytes = env::storage_usage() - initial_storage_usage;
-        self.internal_refund_storage_fee(env::attached_deposit(), required_storage_in_bytes);
     }
 
     //################################################## Owner #####################################

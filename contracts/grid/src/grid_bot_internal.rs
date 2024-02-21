@@ -146,6 +146,13 @@ impl GridBotContract {
         }
     }
 
+    pub fn internal_add_referral_user(&mut self, recommender: &AccountId, user: &AccountId) {
+        if self.refer_user_recommender_map.contains_key(&user) || user.clone() == recommender.clone() {
+            return;
+        }
+        self.internal_add_refer(&user, &recommender);
+    }
+
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
         let next_id = self.next_bot_id.clone();
 

@@ -1,5 +1,4 @@
 use near_sdk::{AccountId, env, Gas};
-use near_sdk::json_types::U128;
 use crate::{GridBotContract, U256C};
 
 impl GridBotContract {
