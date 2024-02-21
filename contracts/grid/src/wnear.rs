@@ -69,7 +69,8 @@ impl ExtSelf for GridBotContract {
             // deposit
             if !self.internal_deposit(&user.clone(), &self.wnear.clone(), U128::from(amount)) {
                 // maybe just need hande one token, but it's ok, no problem
-                self.internal_create_bot_refund_with_near(user, pair, amount + STORAGE_FEE, WRAP_TO_WNEAR_ERROR);
+                self.internal_create_bot_refund_with_near(user, pair, STORAGE_FEE, WRAP_TO_WNEAR_ERROR);
+                self.internal_withdraw_all(user, &self.wnear.clone());
                 emit::wrap_near_error(user, 0, amount, true);
             } else {
                 // request price
