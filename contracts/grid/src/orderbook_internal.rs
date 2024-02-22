@@ -97,7 +97,8 @@ impl GridBotContract {
         require!(maker_order.token_sell == taker_order.token_buy, INVALID_ORDER_TOKEN);
         require!(taker_order.token_sell != taker_order.token_buy, INVALID_ORDER_TOKEN);
         // taker price and maker price match
-        require!(taker_order.amount_sell * maker_order.amount_sell >= taker_order.amount_buy * maker_order.amount_buy, INVALID_PRICE);
+        require!(taker_order.amount_sell * maker_order.amount_sell >= taker_order.amount_buy * maker_order.amount_buy,
+            format!("order not match taker sell:{}, taker buy:{}, maker sell:{}, maker buy:{}", taker_order.amount_sell.as_u128().to_string(), taker_order.amount_buy.as_u128().to_string(), maker_order.amount_sell.as_u128().to_string(), maker_order.amount_buy.as_u128().to_string(), ));
     }
 
     pub fn internal_calculate_matching(maker_order: Order, taker_order: Order, took_sell: U256C, took_buy: U256C) -> (U256C, U256C, U256C, Order) {
