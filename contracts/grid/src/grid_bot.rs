@@ -86,6 +86,7 @@ impl GridBotContract {
     pub fn take_orders(&mut self, take_order: RequestOrder, maker_orders: Vec<OrderKeyInfo>) {
         assert_one_yocto();
         require!(self.market_user_map.contains_key(&(env::predecessor_account_id())), INVALID_USER);
+        require!(take_order.amount_sell.0 >= self.deposit_limit_map.get(&take_order.token_sell).unwrap().as_u128(), INVALID_AMOUNT);
         self.internal_take_orders(&(env::predecessor_account_id()), &take_order.to_order(), maker_orders);
     }
 
