@@ -101,6 +101,13 @@ impl GridBotContract {
         return queried_users;
     }
 
+    pub fn query_invited_count(&self, user: AccountId) -> U128 {
+        if !self.refer_recommender_user_map.contains_key(&user) {
+            return U128::from(0);
+        }
+        return U128::from(self.refer_recommender_user_map.get(&user).unwrap().len() as u128);
+    }
+
     pub fn query_withdraw_near_error_info(&self, user: AccountId) -> U128 {
         require!(self.withdraw_near_error_map.contains_key(&user), INVALID_USER);
         return self.withdraw_near_error_map.get(&user).unwrap();

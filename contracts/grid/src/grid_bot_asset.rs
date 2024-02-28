@@ -130,14 +130,26 @@ impl GridBotContract {
     }
 
     //########################################## bot revenue #######################################
-    pub fn internal_remove_revenue_from_bot(&mut self, bot: &mut GridBot) {
+    pub fn internal_remove_revenue_from_bot(&mut self, bot: &mut GridBot) -> U256C {
+        let real_revenue;
         if bot.fill_base_or_quote {
-            // self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_quote_amount -= bot.revenue.clone();
-            bot.total_quote_amount -= bot.revenue.clone();
+            if bot.total_quote_amount.as_u128() < bot.revenue.as_u128() {
+                real_revenue = bot.total_quote_amount.clone();
+                bot.total_quote_amount = U256C::from(0);
+            } else {
+                bot.total_quote_amount -= bot.revenue.clone();
+                real_revenue = bot.revenue.clone();
+            }
         } else {
-            // self.bot_map.get_mut(&(bot.bot_id)).unwrap().total_base_amount -= bot.revenue.clone();
-            bot.total_base_amount -= bot.revenue.clone();
+            if bot.total_base_amount.as_u128() < bot.revenue.as_u128() {
+                real_revenue = bot.total_base_amount.clone();
+                bot.total_base_amount = U256C::from(0);
+            } else {
+                bot.total_base_amount -= bot.revenue.clone();
+                real_revenue = bot.revenue.clone();
+            }
         }
+        return real_revenue;
     }
 
     pub fn internal_harvest_revenue(&mut self, bot: &mut GridBot, pair: &Pair) -> (AccountId, U256C) {
@@ -146,11 +158,10 @@ impl GridBotContract {
         } else {
             pair.base_token.clone()
         };
-        let revenue = bot.revenue.clone();
         // transfer out from bot asset
-        self.internal_remove_revenue_from_bot(bot);
+        let revenue = self.internal_remove_revenue_from_bot(bot);
         // transfer to available asset
-        self.internal_increase_asset(&(bot.user.clone()), &revenue_token, &(U256C::from(revenue.clone())));
+        self.internal_increase_asset(&(bot.user.clone()), &revenue_token, &revenue);
         // sign to 0
         // self.bot_map.get_mut(&(bot.bot_id)).unwrap().revenue = U256C::from(0);
         bot.revenue = U256C::from(0);

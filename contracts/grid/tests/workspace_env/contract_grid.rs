@@ -175,7 +175,7 @@ impl GridBotHelper {
                 "bot_id": bot_id,
             }))
             .gas(300_000_000_000_000)
-            // .deposit(1)
+            .deposit(1)
             .transact()
             .await
     }

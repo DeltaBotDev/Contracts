@@ -54,7 +54,7 @@ impl GridBotContract {
         emit::order_update(bot_id.clone(), !forward_or_reverse.clone(), level.clone(), &real_opposite_order);
 
         // calculate bot's revenue
-        let (revenue_token, revenue, maker_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), maker_order.clone(), opposite_order, current_filled.clone());
+        let (revenue_token, revenue, maker_fee) = self.internal_calculate_bot_revenue(forward_or_reverse.clone(), made_order.clone(), opposite_order);
 
         // add revenue
         // let bot_mut = self.bot_map.get_mut(&bot_id.clone()).unwrap();
@@ -220,30 +220,19 @@ impl GridBotContract {
         return reverse_order;
     }
 
-    pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, order: Order, opposite_order: Order, current_filled: U256C) -> (AccountId, U256C, U256C) {
+    pub fn internal_calculate_bot_revenue(&self, forward_or_reverse: bool, made_order: Order, opposite_order: Order) -> (AccountId, U256C, U256C) {
         let revenue_token = if opposite_order.fill_buy_or_sell { opposite_order.token_sell } else { opposite_order.token_buy };
         if forward_or_reverse || opposite_order.amount_sell.as_u128() == 0 || opposite_order.amount_buy.as_u128() == 0 {
             return (revenue_token, U256C::from(0), U256C::from(0));
         }
-        // let forward_order = GridBotContract::internal_get_first_forward_order(bot, pair, level);
         let mut revenue;
-        // TODO had made_order, maybe can use mad_order
-        // mad_order, opposite_order
+        // opposite_order is forward order
+        // made_order is reverse order
         if opposite_order.fill_buy_or_sell {
-            // current_filled token is forward_order's buy token
-            // revenue token is forward_order's sell token
-            let forward_sold = current_filled.clone() * opposite_order.amount_sell / opposite_order.amount_buy;
-            let reverse_bought = current_filled.clone() * order.amount_buy / order.amount_sell;
-            require!(reverse_bought >= forward_sold, INVALID_REVENUE);
-            revenue = reverse_bought - forward_sold;
+            revenue = U256C::from(made_order.amount_buy.as_u128() - opposite_order.amount_sell.as_u128())
         } else {
-            // current_filled token is forward_order's sell token
-            // revenue token is forward_order's buy token
-            let forward_bought = current_filled.clone() * opposite_order.amount_buy / opposite_order.amount_sell;
-            let reverse_sold = current_filled.clone() * order.amount_sell / order.amount_buy;
-            require!(forward_bought >= reverse_sold, INVALID_REVENUE);
-            revenue = forward_bought - reverse_sold;
-        };
+            revenue = U256C::from(opposite_order.amount_buy.as_u128() - made_order.amount_sell.as_u128())
+        }
         let protocol_fee = revenue * U256C::from(self.protocol_fee_rate.clone()) / U256C::from(PROTOCOL_FEE_DENOMINATOR);
         revenue -= protocol_fee;
         return (revenue_token, revenue.clone(), protocol_fee.clone());

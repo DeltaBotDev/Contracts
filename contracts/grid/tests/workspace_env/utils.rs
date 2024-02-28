@@ -15,6 +15,9 @@ pub const owner_key_str: &str = "2K19UNqRZKD7USxhD36M3ppXEJ8R392XWpPpNbjpMyP3eLi
 pub const maker_id_str: &str = "cosmossecond.testnet";
 pub const maker_key_str: &str = "3Uswy3tqTTmG6U8Fz5shDyfFSTN9XJD4366vZ79a3kTtBSdPhjh7QEQDcxMCyybhEovoRA7qXBj4x7utnbL2XgHM";
 
+pub const grid_account_id_str: &str = "testdelta1.testnet";
+pub const grid_account_key_str: &str = "SV7QVXjRnbS5Sb7TFoYwvwJtCYjqipLTgFHgCfSJBCa5mNzgDMntTE1qp9QSt6yPEi1D2mhfNWFm6VcAWrY7ucK";
+
 pub const taker_id_str: &str = "cosmosthird.testnet";
 pub const taker_key_str: &str = "34z4p8KwF2bNbSAG8awSdp693PsJxSWHayEBvqyP8qtcDLmfRLUfYdztAKZZXKCJwzePiPM8yf7pBq3NLC99jFmt";
 
