@@ -22,6 +22,7 @@ pub(crate) const MAX_RATIO: u32 = 10000;
 const NUM_DECIMALS: u8 = 27;
 const BIG_DIVISOR: u128 = 10u128.pow(NUM_DECIMALS as u32);
 const HALF_DIVISOR: u128 = BIG_DIVISOR / 2;
+const LESS_ONE_DIVISOR: u128 = BIG_DIVISOR - 1;
 
 pub type LowU128 = U128;
 
@@ -199,6 +200,10 @@ impl BigDecimal {
 
     pub fn round_u128(&self) -> u128 {
         ((self.0 + U384::from(HALF_DIVISOR)) / U384::from(BIG_DIVISOR)).as_u128()
+    }
+
+    pub fn round_up_u128(&self) -> u128 {
+        ((self.0 + U384::from(LESS_ONE_DIVISOR)) / U384::from(BIG_DIVISOR)).as_u128()
     }
 
     pub fn round_down_u128(&self) -> u128 {

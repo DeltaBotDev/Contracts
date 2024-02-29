@@ -1,5 +1,7 @@
+use std::ops::{Div, Mul};
 use near_sdk::{require};
 use crate::*;
+use crate::big_decimal::BigDecimal;
 use crate::entity::GridType::EqOffset;
 use crate::events::emit;
 
@@ -110,7 +112,8 @@ impl GridBotContract {
             max_fill_sell = maker_order.amount_sell * max_fill_buy / maker_order.amount_buy;
         } else {
             max_fill_sell = maker_order.amount_sell - maker_order.filled;
-            max_fill_buy = maker_order.amount_buy * max_fill_sell / maker_order.amount_sell;
+            // max_fill_buy = maker_order.amount_buy * max_fill_sell / maker_order.amount_sell;
+            max_fill_buy = U256C::from(BigDecimal::from(maker_order.amount_buy.as_u128()).mul(BigDecimal::from(max_fill_sell.as_u128())).div(BigDecimal::from(maker_order.amount_sell.as_u128())).round_up_u128());
         }
         // calculate matching amount
         let taker_sell;
@@ -123,7 +126,8 @@ impl GridBotContract {
                 taker_sell = max_fill_buy;
             } else {
                 taker_buy = max_taker_buy;
-                taker_sell = max_fill_buy * taker_buy / max_fill_sell;
+                // taker_sell = max_fill_buy * taker_buy / max_fill_sell;
+                taker_sell = U256C::from(BigDecimal::from(max_fill_buy.as_u128()).mul(BigDecimal::from(taker_buy.as_u128())).div(BigDecimal::from(max_fill_sell.as_u128())).round_up_u128());
             }
         } else {
             let max_taker_sell = taker_order.amount_sell - took_sell;
@@ -183,10 +187,11 @@ impl GridBotContract {
                         bot.last_base_amount
                     }
                 };
-                made_order.amount_sell.clone() + bot.grid_offset.clone() * reverse_order.amount_sell / fixed_amount_sell
+                // made_order.amount_sell.clone() + bot.grid_offset.clone() * reverse_order.amount_sell / fixed_amount_sell
+                made_order.amount_sell.clone() + U256C::from(BigDecimal::from(bot.grid_offset.as_u128()).mul(BigDecimal::from(reverse_order.amount_sell.as_u128())).div(BigDecimal::from(fixed_amount_sell.as_u128())).round_up_u128())
             } else {
                 // made_order.amount_sell.clone() * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
-                made_order.amount_sell.clone() * (GRID_RATE_DENOMINATOR + bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
+                U256C::from(BigDecimal::from(made_order.amount_sell.as_u128()).mul(BigDecimal::from((GRID_RATE_DENOMINATOR + bot.grid_rate) as u128)).div(BigDecimal::from(GRID_RATE_DENOMINATOR as u128)).round_up_u128())
             };
         } else {
             // reverse_order fill buy, fixed buy
@@ -210,7 +215,8 @@ impl GridBotContract {
                         bot.last_quote_amount
                     }
                 };
-                made_order.amount_buy.clone() - bot.grid_offset.clone() * reverse_order.amount_buy / fixed_amount_buy
+                // made_order.amount_buy.clone() - bot.grid_offset.clone() * reverse_order.amount_buy / fixed_amount_buy
+                made_order.amount_buy.clone() - U256C::from(BigDecimal::from(bot.grid_offset.as_u128()).mul(BigDecimal::from(reverse_order.amount_buy.as_u128())).div(BigDecimal::from(fixed_amount_buy.as_u128())).round_up_u128())
             } else {
                 // made_order.amount_buy.clone() * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR
                 // U256C::from((U256C::from(made_order.amount_buy.clone().as_u128()) * (GRID_RATE_DENOMINATOR - bot.grid_rate.clone()) / GRID_RATE_DENOMINATOR).as_u128())
