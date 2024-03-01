@@ -107,18 +107,4 @@ impl GridBotContract {
         }
         return U128::from(self.refer_recommender_user_map.get(&user).unwrap().len() as u128);
     }
-
-    pub fn query_withdraw_near_error_info(&self, user: AccountId) -> U128 {
-        require!(self.withdraw_near_error_map.contains_key(&user), INVALID_USER);
-        return self.withdraw_near_error_map.get(&user).unwrap();
-    }
-
-    pub fn query_withdraw_near_error_effect_global_info(&self, user: AccountId) -> U128 {
-        require!(self.withdraw_near_error_effect_global_map.contains_key(&user), INVALID_USER);
-        return self.withdraw_near_error_effect_global_map.get(&user).unwrap();
-    }
-
-    // pub fn query_storage_fee(&self) -> U256C {
-    //     return U256C::from(self.storage_fee.clone());
-    // }
 }

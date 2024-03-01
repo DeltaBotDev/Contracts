@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env, require};
+use near_sdk::{env, require, StorageUsage};
 use near_sdk::json_types::U128;
 use uint::hex;
 use crate::{GridBotContract};
@@ -19,22 +19,24 @@ impl GridBotContract {
                                slippage: u16,
                                entry_price: &U256C,
                                pair: &Pair,
+                               storage_fee: Balance,
+                               initial_storage_usage: StorageUsage,
                                grid_bot: &mut GridBot) -> bool {
         if self.status != GridStatus::Running {
-            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, PAUSE_OR_SHUTDOWN);
+            self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, PAUSE_OR_SHUTDOWN);
             return false;
         }
         if !self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage) {
-            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, INVALID_PRICE);
+            self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, INVALID_PRICE);
             return false;
         }
         // check balance
         if self.internal_get_user_balance(user, &(pair.base_token)) < grid_bot.total_base_amount {
-            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, LESS_BASE_TOKEN);
+            self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, LESS_BASE_TOKEN);
             return false;
         }
         if self.internal_get_user_balance(user, &(pair.quote_token)) < grid_bot.total_quote_amount {
-            self.internal_create_bot_refund_with_near(&user, &pair, STORAGE_FEE, LESS_QUOTE_TOKEN);
+            self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, LESS_QUOTE_TOKEN);
             return false;
         }
 
@@ -57,6 +59,8 @@ impl GridBotContract {
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
         emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
+
+        self.internal_refund_deposit(storage_fee, initial_storage_usage, &user);
         return true;
     }
 
@@ -96,7 +100,10 @@ impl GridBotContract {
         return (took_amount_sell, took_amount_buy);
     }
 
-    pub fn internal_close_bot(&mut self, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+    pub fn internal_close_bot(&mut self, sender: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {
+        // record storage fee
+        let initial_storage_usage = env::storage_usage();
+
         // sign closed
         bot.closed = true;
 
@@ -110,14 +117,23 @@ impl GridBotContract {
         self.internal_withdraw(&(bot.user), &(pair.base_token), bot.total_base_amount);
         self.internal_withdraw(&(bot.user), &(pair.quote_token), bot.total_quote_amount);
         self.internal_withdraw(&(bot.user), &revenue_token, revenue);
+        // update bot info
         self.bot_map.insert(bot_id, &bot);
+        // clear bots orders
+        let mut order_storage = self.order_map.get(bot_id).unwrap();
+        order_storage.forward_orders.clear();
+        order_storage.reverse_orders.clear();
+        self.order_map.remove(bot_id);
+
+        // Refund
+        self.internal_ft_transfer_near(&(bot.user), self.storage_price_per_byte * Balance::from(initial_storage_usage - env::storage_usage()), false);
 
         // send claim event
         if revenue.as_u128() > 0 {
             // claim event
-            emit::claim(&user, &(bot.user), bot_id.clone(), &revenue_token, revenue);
+            emit::claim(sender, &(bot.user), bot_id.clone(), &revenue_token, revenue);
         }
-        emit::close_bot(user, bot_id.clone());
+        emit::close_bot(sender, bot_id.clone());
     }
 
     pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {

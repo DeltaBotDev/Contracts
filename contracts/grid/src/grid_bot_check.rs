@@ -23,7 +23,7 @@ impl GridBotContract {
     }
 
     pub fn internal_check_bot_amount(&mut self, grid_sell_count: u16, grid_buy_count: u16, first_base_amount_256: U256C, first_quote_amount_256: U256C,
-                                     last_base_amount_256: U256C, last_quote_amount_256: U256C, user: &AccountId, pair: &Pair, base_amount_sell: U256C, quote_amount_buy: U256C) -> (bool, String) {
+                                     last_base_amount_256: U256C, last_quote_amount_256: U256C, pair: &Pair, base_amount_sell: U256C, quote_amount_buy: U256C) -> (bool, String) {
         if grid_sell_count > 0 && grid_buy_count > 0 {
             // require!(last_quote_amount_256 * first_base_amount_256 > first_quote_amount_256 * last_base_amount_256 , INVALID_FIRST_OR_LAST_AMOUNT);
             if last_quote_amount_256 * first_base_amount_256 <= first_quote_amount_256 * last_base_amount_256 {
@@ -76,35 +76,21 @@ impl GridBotContract {
     }
 
     pub fn internal_check_near_amount(&mut self, user: &AccountId, pair: &Pair, near_amount: u128, base_amount_sell: U256C, quote_amount_buy: U256C) -> bool {
-        if pair.quote_token != self.wnear && pair.base_token != self.wnear && near_amount != STORAGE_FEE {
-            return false;
+        if pair.quote_token != self.wnear && pair.base_token != self.wnear {
+            return true;
         }
         let wnear_balance = self.internal_get_user_balance(&user, &self.wnear);
         if pair.base_token == self.wnear {
-            if wnear_balance.as_u128() >= base_amount_sell.as_u128() && near_amount != STORAGE_FEE {
-                // wnear balance is enough, but user support near
-                return false;
-            }
-            if wnear_balance.as_u128() < base_amount_sell.as_u128() && near_amount != (base_amount_sell.as_u128() + STORAGE_FEE) {
-                // wnear balance is not enough, but near is less
+            if wnear_balance.as_u128() < base_amount_sell.as_u128() && near_amount < base_amount_sell.as_u128() {
+                // wnear or near balance is not enough
                 return false;
             }
         }
         if pair.quote_token == self.wnear {
-            if wnear_balance.as_u128() >= quote_amount_buy.as_u128() && near_amount != STORAGE_FEE {
-                // wnear balance is enough, but user support near
+            if wnear_balance.as_u128() < quote_amount_buy.as_u128() && near_amount < quote_amount_buy.as_u128() {
+                // wnear or near balance is not enough
                 return false;
             }
-            if wnear_balance.as_u128() < quote_amount_buy.as_u128() && near_amount != (quote_amount_buy.as_u128() + STORAGE_FEE) {
-                // wnear balance is not enough, but near is less
-                return false;
-            }
-        }
-        // if wnear not register, will revert, it's ok
-        let wnear_min_deposit = self.deposit_limit_map.get(&self.wnear).unwrap();
-        if pair.base_token == self.wnear && base_amount_sell.as_u128() > 0 && base_amount_sell.as_u128() < wnear_min_deposit.as_u128()
-            || pair.quote_token == self.wnear && quote_amount_buy.as_u128() > 0 && quote_amount_buy.as_u128() < wnear_min_deposit.as_u128()  {
-            return false;
         }
         return true;
     }

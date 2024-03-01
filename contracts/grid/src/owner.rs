@@ -29,37 +29,6 @@ impl GridBotContract {
     pub fn migrate() -> Self {
         let contract: GridBotContract = env::state_read().expect(CAN_NOT_READ_STATE);
         contract
-        // Self {
-        //     owner_id: contract.owner_id.clone(),
-        //     oracle: contract.oracle,
-        //     oracle_valid_time: DEFAULT_ORACLE_VALID_TIME,
-        //     status: GridStatus::Running,
-        //     // 1%
-        //     protocol_fee_rate: DEFAULT_PROTOCOL_FEE,
-        //     taker_fee_rate: DEFAULT_TAKER_FEE,
-        //     bot_map: contract.bot_map,
-        //     // order_map: LookupMap::new(b"orders".to_vec()),
-        //     order_map: contract.order_map,
-        //     next_bot_id: contract.next_bot_id,
-        //     // oracle_price_map: LookupMap::new(b"oracle".to_vec()),
-        //     pair_map: contract.pair_map,
-        //     protocol_fee_map: contract.protocol_fee_map,
-        //     // storage_fee: 0,
-        //     global_balances_map: contract.global_balances_map,
-        //     deposit_limit_map: contract.deposit_limit_map,
-        //     user_balances_map: contract.user_balances_map,
-        //     user_locked_balances_map: contract.user_locked_balances_map,
-        //     // user_withdraw_failed_map: LookupMap::new(StorageKey::WithdrawFailedMainKey),
-        //     market_user_map: contract.market_user_map,
-        //     wnear: contract.wnear,
-        //     operator_id: contract.owner_id,
-        //     refer_recommender_user_map: contract.refer_recommender_user_map,
-        //     refer_user_recommender_map: contract.refer_user_recommender_map,
-        //     refer_fee_map: contract.refer_fee_map,
-        //     refer_fee_rate: contract.refer_fee_rate,
-        //     withdraw_near_error_map: LookupMap::new(b"withdraw_near_err".to_vec()),
-        //     withdraw_near_error_effect_global_map: LookupMap::new(b"withdraw_near_err_eff_glo".to_vec()),
-        // }
     }
 }
 

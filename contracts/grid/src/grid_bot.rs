@@ -15,6 +15,8 @@ impl GridBotContract {
                       last_base_amount: U128, last_quote_amount: U128, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128, take_profit_price: U128, stop_loss_price: U128, valid_until_time: U128,
                       entry_price: U128, recommender: Option<AccountId>) {
+        // record storage fee
+        let initial_storage_usage = env::storage_usage();
         let grid_offset_256 = U256C::from(grid_offset.0);
         let first_base_amount_256 = U256C::from(first_base_amount.0);
         let first_quote_amount_256 = U256C::from(first_quote_amount.0);
@@ -55,7 +57,7 @@ impl GridBotContract {
         // last_quote_amount / last_base_amount > first_quote_amount > first_base_amount
         // amount must u128, u128 * u128 <= u256, so, it's ok
         let (result, reason) = self.internal_check_bot_amount(grid_sell_count, grid_buy_count, first_base_amount_256, first_quote_amount_256,
-                                                            last_base_amount_256, last_quote_amount_256, &user, &pair, base_amount_sell, quote_amount_buy);
+                                                            last_base_amount_256, last_quote_amount_256, &pair, base_amount_sell, quote_amount_buy);
         if !result {
             self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), &reason);
             return;
@@ -75,10 +77,15 @@ impl GridBotContract {
 
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
-            self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit() - STORAGE_FEE);
+            let bot_near_amount = self.internal_get_bot_near_amount(&new_grid_bot, &pair);
+            // check storage fee
+            require!(env::attached_deposit() - bot_near_amount >= BASE_CREATE_STORAGE_FEE + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
+            self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, bot_near_amount, env::attached_deposit() - bot_near_amount, initial_storage_usage);
         } else {
+            // check storage fee
+            require!(env::attached_deposit() >= BASE_CREATE_STORAGE_FEE + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
             // request token price
-            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot);
+            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit(), initial_storage_usage);
         }
     }
 
@@ -97,10 +104,8 @@ impl GridBotContract {
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         require!(!bot.closed, INVALID_BOT_STATUS);
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
-        // check permission, user self close or take profit or stop loss
-        // let user = env::predecessor_account_id();
+        // check permission, user self close
         require!(env::predecessor_account_id() == bot.user, INVALID_USER);
-        // require!(self.internal_check_bot_close_permission(&user, &bot), NO_PERMISSION);
 
         self.internal_close_bot(&env::predecessor_account_id(), &bot_id, &mut bot, &pair);
     }
@@ -278,4 +283,15 @@ impl GridBotContract {
         self.refer_fee_rate = new_refer_fee_rate;
     }
 
+    #[payable]
+    pub fn set_storage_price_per_byte(&mut self, new_storage_price_per_byte: U128) {
+        self.assert_owner();
+        self.storage_price_per_byte = new_storage_price_per_byte.0;
+    }
+
+    #[payable]
+    pub fn set_per_grid_storage_fee(&mut self, new_per_grid_storage_fee: U128) {
+        self.assert_owner();
+        self.per_grid_storage_fee = new_per_grid_storage_fee.0;
+    }
 }

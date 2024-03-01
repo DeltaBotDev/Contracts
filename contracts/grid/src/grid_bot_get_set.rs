@@ -1,5 +1,5 @@
 use near_sdk::{AccountId, env, Gas};
-use crate::{GridBotContract, U256C};
+use crate::{GridBot, GridBotContract, Pair, U256C};
 
 impl GridBotContract {
     pub fn internal_get_next_bot_id(&self) -> u128 {
@@ -44,6 +44,15 @@ impl GridBotContract {
         let prepaid_gas = env::prepaid_gas();
         let used_gas = env::used_gas();
         return prepaid_gas - used_gas;
+    }
+
+    pub fn internal_get_bot_near_amount(&self, grid: &GridBot, pair: &Pair) -> u128 {
+        if pair.base_token == self.wnear {
+            return grid.total_base_amount.as_u128();
+        } else if pair.quote_token == self.wnear {
+            return grid.total_quote_amount.as_u128();
+        }
+        return 0 as u128;
     }
 
 }

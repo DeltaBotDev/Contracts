@@ -22,7 +22,8 @@ pub const MAX_PROTOCOL_FEE: u128 = 100000;
 /// protocol fee denominator
 pub const PROTOCOL_FEE_DENOMINATOR: u128 = 1000000;
 
-pub const STORAGE_FEE: u128 = 10_000_000_000_000_000_000_000; // 0.01Near
+pub const BASE_CREATE_STORAGE_FEE: u128 = 10_000_000_000_000_000_000_000; // 0.01Near
+pub const PER_GRID_STORAGE_FEE: u128 = 3_600_000_000_000_000_000_000; // 0.0036Near
 
 /// self.order_map[bot_id][FORWARD_ORDERS_INDEX]
 pub const FORWARD_ORDERS_INDEX: u64 = 0;
@@ -41,3 +42,6 @@ pub const DEFAULT_ORACLE_VALID_TIME: u64 = 90000;
 pub const PRICE_DENOMINATOR: u128 = 1_000_000_000_000_000_000;
 
 pub const MAX_GRID_COUNT: u16 = 300;
+
+/// Price per 1 byte of storage from mainnet genesis config.
+pub const STORAGE_PRICE_PER_BYTE: Balance = 10_000_000_000_000_000_000;
