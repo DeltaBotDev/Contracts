@@ -245,5 +245,6 @@ pub enum StorageKey {
 #[serde(crate = "near_sdk::serde")]
 pub struct TakeRequest {
     pub take_order: RequestOrder,
-    pub maker_orders: Vec<OrderKeyInfo>
+    pub maker_orders: Vec<OrderKeyInfo>,
+    pub return_near: Option<bool>,
 }

@@ -210,7 +210,8 @@ impl GridBotContract {
         // event
         emit::deposit_return_success(sender_id, left.clone(), token_in);
         // withdraw for taker
-        self.internal_withdraw(sender_id, &(taker_order.token_buy), took_buy);
+        let return_near = if take_request.return_near.is_some() { take_request.return_near.unwrap() } else { true };
+        self.internal_withdraw_appoint_near(sender_id, &(taker_order.token_buy), took_buy, return_near);
         return U128::from(left);
     }
 
@@ -221,12 +222,16 @@ impl GridBotContract {
     }
 
     pub fn internal_withdraw(&mut self, user: &AccountId, token: &AccountId, amount: U256C) {
+        self.internal_withdraw_appoint_near(user, token, amount, true);
+    }
+
+    pub fn internal_withdraw_appoint_near(&mut self, user: &AccountId, token: &AccountId, amount: U256C, return_near: bool) {
         if amount.as_u128() == 0 {
             return;
         }
         // reduce user asset
         self.internal_reduce_asset(user, token, &amount);
-        if token.clone() == self.wnear {
+        if token.clone() == self.wnear && return_near {
             // wrap to near
             self.withdraw_near(user, amount.as_u128());
         } else {
