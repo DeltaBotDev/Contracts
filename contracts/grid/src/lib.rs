@@ -71,6 +71,7 @@ pub struct GridBotContract {
     pub refer_fee_map: LookupMap<AccountId, LookupMap<AccountId, U128>>,
     /// refer_fee_rate[0] = first level, refer_fee_rate[1] = second level
     pub refer_fee_rate: Vec<u32>,
+    pub base_create_storage_fee: Balance,
     pub storage_price_per_byte: Balance,
     pub per_grid_storage_fee: Balance,
 }
@@ -105,6 +106,7 @@ impl GridBotContract {
             refer_user_recommender_map: LookupMap::new(b"user_rec".to_vec()),
             refer_fee_map: LookupMap::new(StorageKey::ReferFeeMainKey),
             refer_fee_rate: vec![],
+            base_create_storage_fee: BASE_CREATE_STORAGE_FEE,
             storage_price_per_byte: STORAGE_PRICE_PER_BYTE,
             per_grid_storage_fee: PER_GRID_STORAGE_FEE,
         }

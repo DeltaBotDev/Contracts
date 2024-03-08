@@ -19,6 +19,7 @@ impl GridBotContract {
                                slippage: u16,
                                entry_price: &U256C,
                                pair: &Pair,
+                               recommender: Option<AccountId>,
                                storage_fee: Balance,
                                initial_storage_usage: StorageUsage,
                                grid_bot: &mut GridBot) -> bool {
@@ -57,6 +58,9 @@ impl GridBotContract {
 
         // insert bot
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
+
+        // add recommender
+        self.internal_add_referral_user(recommender, &user);
 
         emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
 

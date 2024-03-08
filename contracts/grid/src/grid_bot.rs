@@ -72,20 +72,17 @@ impl GridBotContract {
             total_quote_amount: quote_amount_buy, total_base_amount: base_amount_sell, revenue: U256C::from(0), total_revenue: U256C::from(0)
         };
 
-        // add recommender
-        self.internal_add_referral_user(recommender, &user);
-
         if self.internal_need_wrap_near(&user, &pair, base_amount_sell, quote_amount_buy) {
             // wrap near to wnear first
             let bot_near_amount = self.internal_get_bot_near_amount(&new_grid_bot, &pair);
             // check storage fee
-            require!(env::attached_deposit() - bot_near_amount >= BASE_CREATE_STORAGE_FEE + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
-            self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, bot_near_amount, env::attached_deposit() - bot_near_amount, initial_storage_usage);
+            require!(env::attached_deposit() - bot_near_amount >= self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
+            self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, bot_near_amount, recommender, env::attached_deposit() - bot_near_amount, initial_storage_usage);
         } else {
             // check storage fee
-            require!(env::attached_deposit() >= BASE_CREATE_STORAGE_FEE + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
+            require!(env::attached_deposit() >= self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
             // request token price
-            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, env::attached_deposit(), initial_storage_usage);
+            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, recommender, env::attached_deposit(), initial_storage_usage);
         }
     }
 
@@ -153,6 +150,12 @@ impl GridBotContract {
         assert_one_yocto();
         let user = env::predecessor_account_id();
         self.internal_withdraw_refer_fee(&user, &token, amount);
+    }
+
+    #[payable]
+    pub fn token_storage_deposit(&mut self, user: AccountId, token: AccountId) {
+        require!(env::attached_deposit() == BASE_CREATE_STORAGE_FEE);
+        self.internal_increase_asset(&user, &token, &U256C::from(0));
     }
 
     //################################################## Owner #####################################
@@ -281,6 +284,12 @@ impl GridBotContract {
     pub fn set_refer_fee_rate(&mut self, new_refer_fee_rate: Vec<u32>) {
         self.assert_owner();
         self.refer_fee_rate = new_refer_fee_rate;
+    }
+
+    #[payable]
+    pub fn set_base_create_storage_fee(&mut self, new_base_create_storage_fee: U128) {
+        self.assert_owner();
+        self.base_create_storage_fee = new_base_create_storage_fee.0;
     }
 
     #[payable]

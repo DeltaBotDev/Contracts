@@ -12,11 +12,7 @@ impl GridBotContract {
         let mut user_balances = self.user_balances_map.get(user).unwrap();
         let balance = user_balances.get(token).unwrap_or(U256C::from(0));
         let new_balance = balance - amount;
-        if new_balance.as_u128() == 0 {
-            user_balances.remove(token);
-        } else {
-            user_balances.insert(token, &new_balance);
-        }
+        user_balances.insert(token, &new_balance);
         self.user_balances_map.insert(user, &user_balances);
     }
 
@@ -81,11 +77,7 @@ impl GridBotContract {
 
         let balance = user_locked_balances.get(token).unwrap_or(U256C::from(0));
         let new_balance = balance - amount;
-        if new_balance.as_u128() == 0 {
-            user_locked_balances.remove(token);
-        } else {
-            user_locked_balances.insert(token, &new_balance);
-        }
+        user_locked_balances.insert(token, &new_balance);
         self.user_locked_balances_map.insert(user, &user_locked_balances);
     }
 

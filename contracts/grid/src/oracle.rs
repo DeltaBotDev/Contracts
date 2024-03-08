@@ -147,6 +147,7 @@ impl GridBotContract {
         slippage: u16,
         entry_price: &U256C,
         grid_bot: &mut GridBot,
+        recommender: Option<AccountId>,
         storage_fee: u128,
         storage_used: StorageUsage
     ) {
@@ -154,7 +155,7 @@ impl GridBotContract {
         promise.then(
             Self::ext(env::current_account_id())
                 .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_ORACLE)
-                .get_price_for_create_bot_callback(tokens.len(), tokens, user, slippage, entry_price, pair, grid_bot, storage_fee, storage_used),
+                .get_price_for_create_bot_callback(tokens.len(), tokens, user, slippage, entry_price, pair, grid_bot, recommender, storage_fee, storage_used),
         );
     }
 
@@ -190,7 +191,7 @@ impl GridBotContract {
 trait ExtSelf {
     fn get_price_for_create_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user: &AccountId,
                                          slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot,
-                                         storage_fee: u128, storage_used: StorageUsage) -> bool;
+                                         recommender: Option<AccountId>, storage_fee: u128, storage_used: StorageUsage) -> bool;
     fn get_price_for_close_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, user: &AccountId, pair: &Pair, grid_bot: &mut GridBot);
     fn get_price_for_trigger_bot_callback(&mut self, promise_num: usize, tokens: Vec<AccountId>, grid_bot: &mut GridBot);
 }
@@ -201,14 +202,14 @@ impl ExtSelf for GridBotContract {
     fn get_price_for_create_bot_callback(&mut self,
                                          promise_num: usize, tokens: Vec<AccountId>, user: &AccountId,
                                          slippage: u16, entry_price: &U256C, pair: &Pair, grid_bot: &mut GridBot,
-                                         storage_fee: u128, storage_used: StorageUsage
+                                         recommender: Option<AccountId>, storage_fee: u128, storage_used: StorageUsage
     ) -> bool {
         let price_list = self.private_get_price_list(promise_num, tokens);
         if price_list.len() != PAIR_TOKEN_LENGTH {
             self.internal_create_bot_refund_with_near(user, pair, storage_fee, INVALID_PAIR_PRICE_LENGTH);
             return false;
         }
-        return self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, storage_fee, storage_used, grid_bot);
+        return self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, recommender, storage_fee, storage_used, grid_bot);
     }
 
     #[private]
