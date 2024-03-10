@@ -58,5 +58,7 @@ pub const MORE_THAN_MAX_GRID_COUNT: &str = "MORE_THAN_MAX_GRID_COUNT";
 pub const INVALID_BOT_STATUS: &str = "INVALID_BOT_STATUS";
 pub const INVALID_UNTIL_TIME: &str = "INVALID_UNTIL_TIME";
 pub const LESS_GAS: &str = "LESS_GAS";
+pub const INVALID_PAIR: &str = "INVALID_PAIR";
+
 
 

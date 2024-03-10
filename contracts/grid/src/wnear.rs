@@ -79,7 +79,11 @@ impl ExtSelf for GridBotContract {
                 // request price
                 // reduce storage fee, because deposit
                 let new_storage_fee = storage_fee - self.storage_price_per_byte * ((env::storage_usage() - storage_used) as u128);
-                self.get_price_for_create_bot(pair, user, slippage, entry_price, grid_bot, recommender, new_storage_fee, storage_used);
+                if pair.require_oracle {
+                    self.get_price_for_create_bot(pair, user, slippage, entry_price, grid_bot, recommender, new_storage_fee, storage_used);
+                } else {
+                    self.internal_create_bot(None, None, user, slippage, entry_price, pair, recommender, new_storage_fee, storage_used, grid_bot);
+                }
             }
         }
         promise_success

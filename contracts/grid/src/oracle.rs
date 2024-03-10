@@ -99,7 +99,7 @@ pub trait Pyth {
 
 impl GridBotContract {
     fn private_create_pair_price_request(&self, pair: &Pair) -> (Promise, Vec<AccountId>) {
-        let identifiers = vec![pair.base_oracle_id.clone(), pair.quote_oracle_id.clone()];
+        let identifiers = vec![pair.base_oracle_id.clone().unwrap(), pair.quote_oracle_id.clone().unwrap()];
         let tokens = vec![pair.base_token.clone(), pair.quote_token.clone()];
         let mut promise = ext_pyth::ext(self.oracle.clone()).get_price(identifiers[0].clone());
         for index in 1..identifiers.len() {
@@ -209,7 +209,7 @@ impl ExtSelf for GridBotContract {
             self.internal_create_bot_refund_with_near(user, pair, storage_fee, INVALID_PAIR_PRICE_LENGTH);
             return false;
         }
-        return self.internal_create_bot(price_list[0].clone(), price_list[1].clone(), user, slippage, entry_price, pair, recommender, storage_fee, storage_used, grid_bot);
+        return self.internal_create_bot(Some(price_list[0].clone()), Some(price_list[1].clone()), user, slippage, entry_price, pair, recommender, storage_fee, storage_used, grid_bot);
     }
 
     #[private]

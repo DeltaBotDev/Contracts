@@ -76,13 +76,23 @@ impl GridBotContract {
             // wrap near to wnear first
             let bot_near_amount = self.internal_get_bot_near_amount(&new_grid_bot, &pair);
             // check storage fee
-            require!(env::attached_deposit() - bot_near_amount >= self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
+            if env::attached_deposit() - bot_near_amount < self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128 {
+                self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), LESS_STORAGE_FEE);
+                return;
+            }
             self.deposit_near_to_get_wnear_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, bot_near_amount, recommender, env::attached_deposit() - bot_near_amount, initial_storage_usage);
         } else {
             // check storage fee
-            require!(env::attached_deposit() >= self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128, LESS_STORAGE_FEE);
+            if env::attached_deposit() < self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128 {
+                self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), LESS_STORAGE_FEE);
+                return;
+            }
             // request token price
-            self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, recommender, env::attached_deposit(), initial_storage_usage);
+            if pair.require_oracle {
+                self.get_price_for_create_bot(&pair, &user, slippage, &entry_price_256, &mut new_grid_bot, recommender, env::attached_deposit(), initial_storage_usage);
+            } else {
+                self.internal_create_bot(None, None, &user, slippage, &entry_price_256, &pair, recommender, env::attached_deposit(), initial_storage_usage, &mut new_grid_bot);
+            }
         }
     }
 
@@ -112,6 +122,7 @@ impl GridBotContract {
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         require!(!bot.closed, INVALID_BOT_STATUS);
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
+        require!(pair.require_oracle, INVALID_PAIR);
 
         self.get_price_for_close_bot(&env::predecessor_account_id(), &pair, &mut bot);
     }
@@ -135,6 +146,7 @@ impl GridBotContract {
         let mut bot = self.bot_map.get(&bot_id).unwrap().clone();
         require!(bot.active.clone() == false, BOT_IS_ACTIVE);
         let pair = self.pair_map.get(&bot.pair_id).unwrap().clone();
+        require!(pair.require_oracle, INVALID_PAIR);
         self.get_price_for_trigger_bot(&pair, &mut bot);
     }
 
@@ -226,7 +238,7 @@ impl GridBotContract {
     }
 
     #[payable]
-    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U128, quote_min_deposit: U128, base_oracle_id: String, quote_oracle_id: String) {
+    pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U128, quote_min_deposit: U128, require_oracle: bool, base_oracle_id: Option<String>, quote_oracle_id: Option<String>) {
         require!(env::attached_deposit() == DEFAULT_TOKEN_STORAGE_FEE * 2, LESS_TOKEN_STORAGE_FEE);
         require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
         require!(base_token != quote_token, INVALID_TOKEN);
@@ -237,6 +249,7 @@ impl GridBotContract {
             quote_token: quote_token.clone(),
             base_oracle_id: self.internal_format_price_identifier(base_oracle_id),
             quote_oracle_id: self.internal_format_price_identifier(quote_oracle_id),
+            require_oracle
         };
         self.pair_map.insert(&pair_key, &pair);
         self.internal_init_token(base_token, base_min_deposit);

@@ -20,8 +20,8 @@ pub async fn deploy_grid_bot(
     // let contract = worker.dev_deploy(&std::fs::read(GRID_WASM).unwrap()).await?;
     // let (id, sk) = worker.dev_generate().await;
     // let accunt = create_account(&worker).await;
-
     let accunt = recovery_account(grid_account_id_str, grid_account_key_str, &worker).await;
+
     let money_account = recovery_account(maker_id_str, maker_key_str, &worker).await;
     money_account.transfer_near(&accunt.id(), 1000000000000000000000000 as u128).await;
     let contract = worker.create_tla_and_deploy(accunt.id().clone(), accunt.secret_key().clone(), &std::fs::read(GRID_WASM).unwrap()).await?.result;

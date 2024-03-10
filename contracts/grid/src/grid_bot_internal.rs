@@ -13,8 +13,8 @@ use crate::oracle::{Price, PriceIdentifier};
 impl GridBotContract {
 
     pub fn internal_create_bot(&mut self,
-                               base_price: Price,
-                               quote_price: Price,
+                               base_price_op: Option<Price>,
+                               quote_price_op: Option<Price>,
                                user: &AccountId,
                                slippage: u16,
                                entry_price: &U256C,
@@ -27,7 +27,7 @@ impl GridBotContract {
             self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, PAUSE_OR_SHUTDOWN);
             return false;
         }
-        if !self.internal_check_oracle_price(*entry_price, base_price.clone(), quote_price.clone(), slippage) {
+        if pair.require_oracle && !self.internal_check_oracle_price(*entry_price, base_price_op.clone().unwrap().clone(), quote_price_op.clone().unwrap().clone(), slippage) {
             self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, INVALID_PRICE);
             return false;
         }
@@ -62,7 +62,13 @@ impl GridBotContract {
         // add recommender
         self.internal_add_referral_user(recommender, &user);
 
-        emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
+        if pair.require_oracle {
+            let base_price = base_price_op.unwrap();
+            let quote_price = quote_price_op.unwrap();
+            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
+        } else {
+            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), "0".to_string(), "0".to_string(), "0".to_string(), "0".to_string());
+        }
 
         self.internal_refund_deposit(storage_fee, initial_storage_usage, &user);
         return true;
@@ -340,7 +346,11 @@ impl GridBotContract {
         return U256C::from(DEFAULT_TOKEN_STORAGE_FEE);
     }
 
-    pub fn internal_format_price_identifier(&self, oracle_id: String) -> PriceIdentifier {
+    pub fn internal_format_price_identifier(&self, oracle_id_op: Option<String>) -> Option<PriceIdentifier> {
+        if oracle_id_op.is_none() {
+            return None;
+        }
+        let oracle_id = oracle_id_op.unwrap();
         // 32bytes, hex len = 64
         require!(oracle_id.clone().len() == 64, INVALID_ORACLE_ID);
         let oracle_bytes;
@@ -351,7 +361,7 @@ impl GridBotContract {
         let oracle_bytes_slice = &oracle_bytes[..];
         let mut array = [0u8; 32];
         array.copy_from_slice(oracle_bytes_slice);
-        return PriceIdentifier(array);
+        return Some(PriceIdentifier(array));
     }
 
     pub fn internal_need_wrap_near(&self, user: &AccountId, pair: &Pair, base_amount: U256C, quote_amount: U256C) -> bool {

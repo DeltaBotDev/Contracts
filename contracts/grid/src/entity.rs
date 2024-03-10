@@ -214,8 +214,9 @@ impl Clone for OrderKeyInfo {
 pub struct Pair {
     pub base_token: AccountId,
     pub quote_token: AccountId,
-    pub base_oracle_id: PriceIdentifier,
-    pub quote_oracle_id: PriceIdentifier,
+    pub base_oracle_id: Option<PriceIdentifier>,
+    pub quote_oracle_id: Option<PriceIdentifier>,
+    pub require_oracle: bool,
 }
 
 impl Clone for Pair {
@@ -225,6 +226,7 @@ impl Clone for Pair {
             quote_token: self.quote_token.clone(),
             base_oracle_id: self.base_oracle_id.clone(),
             quote_oracle_id: self.quote_oracle_id.clone(),
+            require_oracle: self.require_oracle.clone(),
         }
     }
 }

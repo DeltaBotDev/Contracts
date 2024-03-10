@@ -42,7 +42,7 @@ impl GridBotHelper {
         return token_contract.ft_transfer_call(caller, &(AccountId::from_str(self.0.id()).expect("Invalid AccountId")), amount, "".to_string()).await;
     }
 
-    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId, base_min_deposit: U256C, quote_min_deposit: U256C, base_oracle_id: String, quote_oracle_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn register_pair(&self, caller: &Account, base_token: &AccountId, quote_token: &AccountId, base_min_deposit: U256C, quote_min_deposit: U256C, require_oracle: bool, base_oracle_id: String, quote_oracle_id: String) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start register_pair");
         caller
             .call(self.0.id(), "register_pair")
@@ -51,6 +51,7 @@ impl GridBotHelper {
                 "quote_token": *quote_token,
                 "base_min_deposit": U128::from(base_min_deposit.as_u128()),
                 "quote_min_deposit": U128::from(quote_min_deposit.as_u128()),
+                "require_oracle": require_oracle,
                 "base_oracle_id": base_oracle_id,
                 "quote_oracle_id": quote_oracle_id,
             }))
@@ -115,7 +116,7 @@ impl GridBotHelper {
                 "entry_price": U128::from(entry_price.as_u128()),
             }))
             .gas(300_000_000_000_000)
-            .deposit(10_000_000_000_000_000_000_000)
+            .deposit(1000_000_000_000_000_000_000_000)
             .transact()
             .await
     }
@@ -220,7 +221,7 @@ impl GridBotHelper {
     }
 
     // ####################################### Owner
-    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId, amount: U256C) -> Result<ExecutionFinalResult, workspaces::error::Error> {
+    pub async fn withdraw_protocol_fee(&self, caller: &Account, token: AccountId, to_user: AccountId, amount: U128) -> Result<ExecutionFinalResult, workspaces::error::Error> {
         log!("start withdraw_protocol_fee");
         caller
             .call(self.0.id(), "withdraw_protocol_fee")
