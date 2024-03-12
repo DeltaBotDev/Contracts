@@ -22,7 +22,7 @@ pub const MAX_PROTOCOL_FEE: u128 = 100000;
 /// protocol fee denominator
 pub const PROTOCOL_FEE_DENOMINATOR: u128 = 1000000;
 
-pub const BASE_CREATE_STORAGE_FEE: u128 = 10_000_000_000_000_000_000_000; // 0.01Near
+pub const BASE_CREATE_STORAGE_FEE: u128 = 20_000_000_000_000_000_000_000; // 0.02Near
 pub const PER_GRID_STORAGE_FEE: u128 = 3_600_000_000_000_000_000_000; // 0.0036Near
 
 /// self.order_map[bot_id][FORWARD_ORDERS_INDEX]
