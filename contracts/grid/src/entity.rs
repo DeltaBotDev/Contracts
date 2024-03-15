@@ -59,6 +59,36 @@ pub struct GridBot {
     pub total_revenue: U256C,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct GridBotOutput {
+    pub name: String,
+    pub active: bool,
+    pub user: AccountId,
+    pub bot_id: String,
+    pub closed: bool,
+    pub pair_id: String,
+    pub grid_type: GridType,
+    pub grid_sell_count: u16,
+    pub grid_buy_count: u16,
+    pub grid_rate: u16,
+    pub grid_offset: U128,
+    pub first_base_amount: U128,
+    pub first_quote_amount: U128,
+    pub last_base_amount: U128,
+    pub last_quote_amount: U128,
+    pub fill_base_or_quote: bool,
+    pub trigger_price: U128,
+    pub trigger_price_above_or_below: bool,
+    pub take_profit_price: U128,
+    pub stop_loss_price: U128,
+    pub valid_until_time: U128,
+    pub total_quote_amount: U128,
+    pub total_base_amount: U128,
+    pub revenue: U128,
+    pub total_revenue: U128,
+}
+
 impl Clone for GridBot {
     fn clone(&self) -> Self {
         GridBot {

@@ -1,5 +1,6 @@
 use near_sdk::{AccountId, env, Gas};
-use crate::{GridBot, GridBotContract, Pair, U256C};
+use near_sdk::json_types::U128;
+use crate::{GridBot, GridBotContract, GridBotOutput, Pair, U256C};
 
 impl GridBotContract {
     pub fn internal_get_next_bot_id(&self) -> u128 {
@@ -55,4 +56,33 @@ impl GridBotContract {
         return 0 as u128;
     }
 
+    pub fn internal_get_grid_bot_output(&self, grid: &GridBot) -> GridBotOutput {
+        GridBotOutput {
+            name: grid.name.clone(),
+            active: grid.active.clone(),
+            user: grid.user.clone(),
+            bot_id: grid.bot_id.clone(),
+            closed: grid.closed.clone(),
+            pair_id: grid.pair_id.clone(),
+            grid_type: grid.grid_type.clone(),
+            grid_sell_count: grid.grid_sell_count.clone(),
+            grid_buy_count: grid.grid_buy_count.clone(),
+            grid_rate: grid.grid_rate.clone(),
+            grid_offset: U128::from(grid.grid_offset.as_u128()),
+            first_base_amount: U128::from(grid.first_base_amount.as_u128()),
+            first_quote_amount: U128::from(grid.first_quote_amount.as_u128()),
+            last_base_amount: U128::from(grid.last_base_amount.as_u128()),
+            last_quote_amount: U128::from(grid.last_quote_amount.as_u128()),
+            fill_base_or_quote: grid.fill_base_or_quote.clone(),
+            trigger_price: U128::from(grid.trigger_price.as_u128()),
+            trigger_price_above_or_below: grid.trigger_price_above_or_below.clone(),
+            take_profit_price: U128::from(grid.take_profit_price.as_u128()),
+            stop_loss_price: U128::from(grid.stop_loss_price.as_u128()),
+            valid_until_time: U128::from(grid.valid_until_time.as_u128()),
+            total_quote_amount: U128::from(grid.total_quote_amount.as_u128()),
+            total_base_amount: U128::from(grid.total_base_amount.as_u128()),
+            revenue: U128::from(grid.revenue.as_u128()),
+            total_revenue: U128::from(grid.total_revenue.as_u128()),
+        }
+    }
 }

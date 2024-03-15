@@ -65,9 +65,9 @@ impl GridBotContract {
         if pair.require_oracle {
             let base_price = base_price_op.unwrap();
             let quote_price = quote_price_op.unwrap();
-            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string());
+            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), base_price.price.0.to_string(), quote_price.price.0.to_string(), base_price.expo.to_string(), quote_price.expo.to_string(), slippage, U128::from(entry_price.as_u128()), pair.clone(), self.internal_get_grid_bot_output(grid_bot));
         } else {
-            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), "0".to_string(), "0".to_string(), "0".to_string(), "0".to_string());
+            emit::create_bot(&grid_bot.user, grid_bot.bot_id.clone(), "0".to_string(), "0".to_string(), "0".to_string(), "0".to_string(), slippage, U128::from(entry_price.as_u128()), pair.clone(), self.internal_get_grid_bot_output(grid_bot));
         }
 
         self.internal_refund_deposit(storage_fee, initial_storage_usage, &user);

@@ -25,6 +25,10 @@ pub mod emit {
         pub quote_price: String,
         pub base_expo: String,
         pub quote_expo: String,
+        pub slippage: u16,
+        pub entry_price: U128,
+        pub pair: Pair,
+        pub grid_bot: GridBotOutput,
     }
 
     #[derive(Serialize)]
@@ -339,7 +343,7 @@ pub mod emit {
         );
     }
 
-    pub fn create_bot(account_id: &AccountId, bot_id: String, base_price: String, quote_price: String, base_expo: String, quote_expo: String) {
+    pub fn create_bot(account_id: &AccountId, bot_id: String, base_price: String, quote_price: String, base_expo: String, quote_expo: String, slippage: u16, entry_price: U128, pair: Pair, grid_bot: GridBotOutput) {
         log_event(
             "create_bot",
             CreateBot {
@@ -349,6 +353,10 @@ pub mod emit {
                 quote_price,
                 base_expo,
                 quote_expo,
+                slippage,
+                entry_price,
+                pair,
+                grid_bot
             },
         );
     }
