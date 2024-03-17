@@ -82,6 +82,7 @@ impl GridBotContract {
         require!(self.internal_get_user_balance(&user, &(take_order.token_sell)) >= take_order.amount_sell, LESS_TOKEN_SELL);
         let mut took_amount_sell = U256C::from(0);
         let mut took_amount_buy = U256C::from(0);
+        let mut took_amount_buy_with_fee = U256C::from(0);
         let mut total_took_fee = U256C::from(0);
         // loop take order
         for maker_order in maker_orders.iter() {
@@ -89,10 +90,11 @@ impl GridBotContract {
                 // over
                 break;
             }
-            let (taker_sell, taker_buy, maker, maker_fee, current_revenue, maker_left_revenue, maker_total_revenue) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy.clone());
+            let (taker_sell, taker_buy, maker, maker_fee, current_revenue, maker_left_revenue, maker_total_revenue) = self.internal_take_order(maker_order.bot_id.clone(), maker_order.forward_or_reverse.clone(), maker_order.level.clone(), &take_order, took_amount_sell.clone(), took_amount_buy_with_fee.clone());
             // calculate taker fee
             let (real_taker_buy, taker_fee) = self.internal_calculate_taker_fee(taker_buy);
             took_amount_sell += taker_sell;
+            took_amount_buy_with_fee += taker_buy;
             took_amount_buy += real_taker_buy;
             total_took_fee += taker_fee;
             // send event
