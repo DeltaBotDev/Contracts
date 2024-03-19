@@ -128,6 +128,13 @@ pub mod emit {
         pub to_wnear: bool,
     }
 
+    #[derive(Serialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct AddReferral<'a> {
+        pub user: &'a AccountId,
+        pub recommender: &'a AccountId,
+    }
+
     fn log_event<T: Serialize>(event: &str, data: T) {
         let event = json!({
             "standard": "DeltaBot",
@@ -444,6 +451,16 @@ pub mod emit {
             CreateBotError {
                 user,
                 reason: reason.to_string(),
+            },
+        );
+    }
+
+    pub fn add_referral(user: &AccountId, recommender: &AccountId) {
+        log_event(
+            "add_referral",
+            AddReferral {
+                user,
+                recommender,
             },
         );
     }
