@@ -138,14 +138,15 @@ impl GridBotContract {
         self.order_map.remove(bot_id);
 
         // Refund
-        self.internal_ft_transfer_near(&(bot.user), self.storage_price_per_byte * Balance::from(initial_storage_usage - env::storage_usage()), false);
+        let refund = self.storage_price_per_byte * Balance::from(initial_storage_usage - env::storage_usage());
+        self.internal_ft_transfer_near(&(bot.user), refund, false);
 
         // send claim event
         if revenue.as_u128() > 0 {
             // claim event
             emit::claim(sender, &(bot.user), bot_id.clone(), &revenue_token, revenue);
         }
-        emit::close_bot(sender, bot_id.clone());
+        emit::close_bot(sender, bot_id.clone(), refund);
     }
 
     pub fn internal_auto_close_bot(&mut self, base_price: Price, quote_price: Price, user: &AccountId, bot_id: &String, bot: &mut GridBot, pair: &Pair) {

@@ -43,6 +43,8 @@ pub mod emit {
     struct CloseBot<'a> {
         pub account_id: &'a AccountId,
         pub bot_id: String,
+        #[serde(with = "u128_dec_format")]
+        pub refund: Balance,
     }
 
     #[derive(Serialize)]
@@ -368,12 +370,13 @@ pub mod emit {
         );
     }
 
-    pub fn close_bot(account_id: &AccountId, bot_id: String) {
+    pub fn close_bot(account_id: &AccountId, bot_id: String, refund: Balance) {
         log_event(
             "close_bot",
             CloseBot {
                 account_id: &account_id,
                 bot_id,
+                refund
             },
         );
     }
