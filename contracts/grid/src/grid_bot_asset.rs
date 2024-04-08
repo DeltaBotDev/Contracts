@@ -162,10 +162,12 @@ impl GridBotContract {
 
     pub fn internal_deposit(&mut self, sender_id: &AccountId, token_in: &AccountId, amount: U128) -> bool {
         require!(self.global_balances_map.contains_key(token_in), INVALID_TOKEN);
+        if !self.query_user_token_registered(sender_id.clone(), token_in.clone()) {
+            emit::deposit_failed(sender_id, amount.clone().0, token_in);
+            return false;
+        }
         // require min deposit
-        // require!(amount.clone().0 >= self.deposit_limit_map.get(token_in).unwrap().as_u128(), LESS_DEPOSIT_AMOUNT);
         if amount.clone().0 < self.deposit_limit_map.get(token_in).unwrap().as_u128() {
-            self.internal_token_refund(sender_id, token_in, LESS_DEPOSIT_AMOUNT);
             emit::deposit_failed(sender_id, amount.clone().0, token_in);
             return false;
         }

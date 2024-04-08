@@ -167,7 +167,10 @@ impl GridBotContract {
     #[payable]
     pub fn token_storage_deposit(&mut self, user: AccountId, token: AccountId) {
         require!(env::attached_deposit() == BASE_CREATE_STORAGE_FEE);
+        let initial_storage_usage = env::storage_usage();
         self.internal_increase_asset(&user, &token, &U256C::from(0));
+        self.internal_increase_locked_assets(&user, &token, &U256C::from(0));
+        self.internal_refund_deposit(BASE_CREATE_STORAGE_FEE, initial_storage_usage, &env::predecessor_account_id());
     }
 
     //################################################## Owner #####################################

@@ -107,4 +107,15 @@ impl GridBotContract {
         }
         return U128::from(self.refer_recommender_user_map.get(&user).unwrap().len() as u128);
     }
+
+    pub fn query_user_token_registered(&self, user: AccountId, token: AccountId) -> bool {
+        if !self.user_balances_map.contains_key(&user) {
+            return false;
+        }
+        let user_balances = self.user_balances_map.get(&user).unwrap();
+        if !user_balances.contains_key(&token) {
+            return false;
+        }
+        return true;
+    }
 }
