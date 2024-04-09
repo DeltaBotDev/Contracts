@@ -260,6 +260,22 @@ impl GridBotContract {
     }
 
     #[payable]
+    pub fn enable_oracle_config(&mut self, base_token: AccountId, quote_token: AccountId, base_oracle_id: String, quote_oracle_id: String) {
+        self.assert_owner();
+        let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
+        require!(self.pair_map.contains_key(&pair_key), INVALID_PAIR);
+        let mut pair = self.pair_map.get(&pair_key).unwrap();
+        require!(!pair.require_oracle, INVALID_PAIR);
+        let base_oracle_id_op = self.internal_format_price_identifier(Some(base_oracle_id));
+        let quote_oracle_id_op = self.internal_format_price_identifier(Some(quote_oracle_id));
+        require!(base_oracle_id_op.is_some() && quote_oracle_id_op.is_some(), INVALID_ORACLE_ID);
+        pair.base_oracle_id = base_oracle_id_op;
+        pair.quote_oracle_id = quote_oracle_id_op;
+        pair.require_oracle = true;
+        self.pair_map.insert(&pair_key, &pair);
+    }
+
+    #[payable]
     pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U128) {
         self.assert_owner();
         self.deposit_limit_map.insert(&token, &U256C::from(min_deposit.0));
