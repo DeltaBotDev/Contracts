@@ -74,24 +74,4 @@ impl GridBotContract {
         }
         return false;
     }
-
-    pub fn internal_check_near_amount(&mut self, user: &AccountId, pair: &Pair, near_amount: u128, base_amount_sell: U256C, quote_amount_buy: U256C) -> bool {
-        if pair.quote_token != self.wnear && pair.base_token != self.wnear {
-            return true;
-        }
-        let wnear_balance = self.internal_get_user_balance(&user, &self.wnear);
-        if pair.base_token == self.wnear {
-            if wnear_balance.as_u128() < base_amount_sell.as_u128() && near_amount < base_amount_sell.as_u128() {
-                // wnear or near balance is not enough
-                return false;
-            }
-        }
-        if pair.quote_token == self.wnear {
-            if wnear_balance.as_u128() < quote_amount_buy.as_u128() && near_amount < quote_amount_buy.as_u128() {
-                // wnear or near balance is not enough
-                return false;
-            }
-        }
-        return true;
-    }
 }

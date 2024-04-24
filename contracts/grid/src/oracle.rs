@@ -1,6 +1,6 @@
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{env, log, near_bindgen, AccountId, PromiseResult, ext_contract, require, Promise, StorageUsage};
+use near_sdk::{env, log, near_bindgen, AccountId, PromiseResult, ext_contract, require, Promise};
 // use near_sdk::__private::schemars::schema::SingleOrVec::Vec;
 use near_sdk::json_types::{I64, U64};
 use uint::hex;

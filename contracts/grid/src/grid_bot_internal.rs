@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::*;
-use near_sdk::{env, require, StorageUsage};
+use near_sdk::{env, require};
 use near_sdk::json_types::U128;
 use uint::hex;
 use crate::{GridBotContract};
