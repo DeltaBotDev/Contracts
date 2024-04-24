@@ -384,4 +384,9 @@ impl GridBotContract {
             self.internal_ft_transfer_near(user, refund, false);
         }
     }
+
+    pub fn internal_register_token_for_user(&mut self, user: &AccountId, token: &AccountId) {
+        self.internal_increase_asset(&user, token, &U256C::from(0));
+        self.internal_increase_locked_assets(&user, token, &U256C::from(0));
+    }
 }

@@ -61,7 +61,8 @@ impl GridBotContract {
         self.bot_map.insert(&(grid_bot.bot_id), &grid_bot);
 
         // add recommender
-        self.internal_add_referral_user(recommender, &user);
+        self.internal_add_referral_user(recommender.clone(), &user);
+        self.internal_token_register_for_recommender(recommender, &pair.base_token, &pair.quote_token);
 
         if pair.require_oracle {
             let base_price = base_price_op.unwrap();
@@ -183,6 +184,15 @@ impl GridBotContract {
         let recommender = recommender_op.unwrap();
         self.internal_add_refer(user, &recommender);
         emit::add_referral(user, &recommender);
+    }
+
+    pub fn internal_token_register_for_recommender(&mut self, recommender_op: Option<AccountId>, base_token: &AccountId, quote_token: &AccountId) {
+        if recommender_op.is_none() {
+            return;
+        }
+        let recommender = recommender_op.unwrap();
+        self.internal_register_token_for_user(&recommender, base_token);
+        self.internal_register_token_for_user(&recommender, quote_token);
     }
 
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {
