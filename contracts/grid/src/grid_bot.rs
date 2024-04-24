@@ -312,6 +312,9 @@ impl GridBotContract {
     #[payable]
     pub fn set_refer_fee_rate(&mut self, new_refer_fee_rate: Vec<u32>) {
         self.assert_owner();
+        for new_fee in new_refer_fee_rate.clone() {
+            require!(new_fee as u128 <= PROTOCOL_FEE_DENOMINATOR);
+        }
         self.refer_fee_rate = new_refer_fee_rate;
     }
 
