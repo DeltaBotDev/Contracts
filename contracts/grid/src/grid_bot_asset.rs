@@ -54,9 +54,6 @@ impl GridBotContract {
     }
 
     pub fn internal_increase_locked_assets(&mut self, user: &AccountId, token: &AccountId, amount: &U256C) {
-        if *amount == U256C::from(0) {
-            return;
-        }
         let mut user_locked_balances = self.user_locked_balances_map.get(user).unwrap_or_else(|| {
             let mut map = LookupMap::new(StorageKey::UserLockedBalanceSubKey(user.clone()));
             map.insert(token, &U256C::from(0));
