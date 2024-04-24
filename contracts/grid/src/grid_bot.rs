@@ -17,7 +17,6 @@ impl GridBotContract {
                       entry_price: U128, recommender: Option<AccountId>) {
         let user = env::predecessor_account_id();
         require!(self.global_balances_map.contains_key(&self.wnear), INVALID_PAIR);
-        require!(self.query_user_token_registered(user.clone(), self.wnear.clone()), WNEAR_NOT_REGISTERED);
         let grid_offset_256 = U256C::from(grid_offset.0);
         let first_base_amount_256 = U256C::from(first_base_amount.0);
         let first_quote_amount_256 = U256C::from(first_quote_amount.0);
@@ -73,7 +72,7 @@ impl GridBotContract {
             // wrap near to wnear first
             let bot_near_amount = self.internal_get_bot_near_amount(&new_grid_bot, &pair);
             // check storage fee
-            if env::attached_deposit() - bot_near_amount < self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128 {
+            if !self.query_user_token_registered(user.clone(), self.wnear.clone()) || env::attached_deposit() - bot_near_amount < self.base_create_storage_fee + self.per_grid_storage_fee * (grid_buy_count + grid_sell_count) as u128 {
                 self.internal_create_bot_refund_with_near(&user, &pair, env::attached_deposit(), LESS_STORAGE_FEE);
                 return;
             }
