@@ -33,6 +33,8 @@ impl GridBotContract {
 
         require!(self.pair_map.contains_key(&pair_id), INVALID_PAIR_ID);
         let pair = self.pair_map.get(&pair_id).unwrap().clone();
+        // if pair not support oracle, will can't use trigger_price/take_profit_price/stop_loss_price
+        require!(pair.require_oracle || !pair.require_oracle && trigger_price.0 == 0 && take_profit_price.0 == 0 && stop_loss_price.0 == 0, INVALID_ORACLE_PARAM);
 
         // require!(self.status == GridStatus::Running, PAUSE_OR_SHUTDOWN);
         if self.status != GridStatus::Running {

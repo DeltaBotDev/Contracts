@@ -27,6 +27,7 @@ pub const INVALID_BOT_ID: &str = "INVALID_BOT_ID";
 pub const BOT_CLOSED: &str = "BOT_CLOSED";
 pub const BOT_DISABLE: &str = "BOT_DISABLE";
 pub const INVALID_PARAM: &str = "INVALID_PARAM";
+pub const INVALID_ORACLE_PARAM: &str = "INVALID_ORACLE_PARAM";
 pub const ERR_NOT_ALLOWED: &str = "ERR_NOT_ALLOWED";
 pub const INVALID_TRANSFER_DATA: &str = "INVALID_TRANSFER_DATA";
 pub const INVALID_BALANCE: &str = "INVALID_BALANCE";
