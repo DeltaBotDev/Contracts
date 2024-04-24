@@ -21,8 +21,9 @@ impl GridBotContract {
                                pair: &Pair,
                                recommender: Option<AccountId>,
                                storage_fee: Balance,
-                               initial_storage_usage: StorageUsage,
                                grid_bot: &mut GridBot) -> bool {
+        // record storage fee
+        let initial_storage_usage = env::storage_usage();
         if self.status != GridStatus::Running {
             self.internal_create_bot_refund_with_near(&user, &pair, storage_fee, PAUSE_OR_SHUTDOWN);
             return false;
