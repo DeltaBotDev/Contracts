@@ -280,7 +280,7 @@ impl GridBotContract {
 
     pub fn internal_add_refer_recommend_user(&mut self, user: &AccountId, recommender: &AccountId) {
         if !self.refer_recommender_user_map.contains_key(recommender) {
-            let key = user.to_string() + ":ref_users";
+            let key = recommender.to_string() + ":ref_users";
             self.refer_recommender_user_map.insert(recommender, &Vector::new(key.as_bytes().to_vec()));
         }
         let mut ref_users = self.refer_recommender_user_map.get(recommender).unwrap();
