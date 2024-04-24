@@ -15,6 +15,7 @@ impl GridBotContract {
                       last_base_amount: U128, last_quote_amount: U128, fill_base_or_quote: bool, grid_sell_count: u16, grid_buy_count: u16,
                       trigger_price: U128, take_profit_price: U128, stop_loss_price: U128, valid_until_time: U128,
                       entry_price: U128, recommender: Option<AccountId>) {
+        require!(self.global_balances_map.contains_key(&self.wnear), WNEAR_NOT_REGISTERED);
         // record storage fee
         let initial_storage_usage = env::storage_usage();
         let grid_offset_256 = U256C::from(grid_offset.0);

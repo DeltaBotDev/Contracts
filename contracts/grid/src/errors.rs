@@ -59,6 +59,7 @@ pub const INVALID_BOT_STATUS: &str = "INVALID_BOT_STATUS";
 pub const INVALID_UNTIL_TIME: &str = "INVALID_UNTIL_TIME";
 pub const LESS_GAS: &str = "LESS_GAS";
 pub const INVALID_PAIR: &str = "INVALID_PAIR";
+pub const WNEAR_NOT_REGISTERED: &str = "WNEAR_NOT_REGISTERED";
 
 
 
