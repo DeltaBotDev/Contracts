@@ -191,8 +191,8 @@ impl GridBotContract {
             return;
         }
         let recommender = recommender_op.unwrap();
-        self.internal_register_token_for_user(&recommender, base_token);
-        self.internal_register_token_for_user(&recommender, quote_token);
+        self.internal_increase_refer_fee(&recommender, base_token, &U128::from(0), true);
+        self.internal_increase_refer_fee(&recommender, quote_token, &U128::from(0), true);
     }
 
     pub fn internal_get_and_use_next_bot_id(&mut self) -> u128 {

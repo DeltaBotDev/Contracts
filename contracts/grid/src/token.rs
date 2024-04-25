@@ -228,7 +228,7 @@ impl ExtSelf for GridBotContract {
         let promise_success = is_promise_success();
         if !promise_success.clone() {
             emit::withdraw_refer_fee_failed(&account_id, amount.clone().0, &token_id);
-            self.internal_increase_refer_fee(&account_id, &token_id, &amount);
+            self.internal_increase_refer_fee(&account_id, &token_id, &amount, false);
         } else {
             emit::withdraw_refer_fee_succeeded(&account_id, amount.clone().0, &token_id);
             // reduce from global asset

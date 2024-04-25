@@ -294,8 +294,8 @@ impl GridBotContract {
         self.internal_add_refer_recommend_user(user, recommender);
     }
 
-    pub fn internal_increase_refer_fee(&mut self, user: &AccountId, token: &AccountId, amount: &U128) {
-        if amount.0 == 0 {
+    pub fn internal_increase_refer_fee(&mut self, user: &AccountId, token: &AccountId, amount: &U128, initial_refer_account: bool) {
+        if !initial_refer_account && amount.0 == 0 {
             return;
         }
         if !self.refer_fee_map.contains_key(user) {
@@ -347,14 +347,14 @@ impl GridBotContract {
                 need_pay_fee -= refer_fee;
                 total_payed_fee += need_pay_fee;
                 // pay
-                self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee));
+                self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee), false);
             }
             need_pay_fee = refer_fee;
             pay_fee_user = recommender_op.unwrap();
         }
         if need_pay_fee > 0 {
             total_payed_fee += need_pay_fee;
-            self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee));
+            self.internal_increase_refer_fee(&pay_fee_user, token, &U128::from(need_pay_fee), false);
         }
         return (U256C::from(protocol_fee.as_u128() - total_payed_fee), U256C::from(total_payed_fee));
     }
