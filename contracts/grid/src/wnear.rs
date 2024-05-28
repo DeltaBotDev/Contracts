@@ -16,9 +16,11 @@ impl GridBotContract {
     pub fn withdraw_near(&mut self, user: &AccountId, amount: u128) {
         ext_wnear::ext(self.wnear.clone())
             .with_attached_deposit(ONE_YOCTO)
+            .with_static_gas(GAS_FOR_WITH_NEAR_WRAP)
             .near_withdraw(U128::from(amount))
             .then(
                 Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_FOR_AFTER_FT_TRANSFER)
                     .after_withdraw_near(
                         user,
                         amount,
@@ -30,7 +32,7 @@ impl GridBotContract {
                                      grid_bot: &mut GridBot, amount: u128, recommender: Option<AccountId>, storage_fee: u128) {
         ext_wnear::ext(self.wnear.clone())
             .with_attached_deposit(amount)
-            // .with_static_gas(GAS_FOR_CREATE_BOT_AFTER_NEAR)
+            .with_static_gas(GAS_FOR_WITH_NEAR_WRAP)
             .near_deposit()
             .then(
             Self::ext(env::current_account_id())
