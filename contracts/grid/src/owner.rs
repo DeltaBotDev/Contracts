@@ -16,6 +16,10 @@ impl GridBotContract {
 
     pub(crate) fn assert_owner(&self) {
         assert_one_yocto();
+        self.assert_owner_without_yocto();
+    }
+
+    pub(crate) fn assert_owner_without_yocto(&self) {
         require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
     }
 
@@ -48,7 +52,7 @@ mod upgrade {
     pub extern "C" fn upgrade() {
         env::setup_panic_hook();
         let contract: GridBotContract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-        contract.assert_owner();
+        contract.assert_owner_without_yocto();
         let current_account_id = env::current_account_id().as_bytes().to_vec();
         let migrate_method_name = b"migrate".to_vec();
         let query_protocol_fee_rate_method_name = b"query_protocol_fee_rate".to_vec();
