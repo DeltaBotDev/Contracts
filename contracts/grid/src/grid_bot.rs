@@ -239,7 +239,7 @@ impl GridBotContract {
     #[payable]
     pub fn register_pair(&mut self, base_token: AccountId, quote_token: AccountId, base_min_deposit: U128, quote_min_deposit: U128, require_oracle: bool, base_oracle_id: Option<String>, quote_oracle_id: Option<String>) {
         require!(env::attached_deposit() == DEFAULT_TOKEN_STORAGE_FEE * 2, LESS_TOKEN_STORAGE_FEE);
-        require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
+        require!(env::predecessor_account_id() == self.owner_id || env::predecessor_account_id() == self.operator_id, ERR_NOT_ALLOWED);
         require!(base_token != quote_token, INVALID_TOKEN);
         let pair_key = GridBotContract::internal_get_pair_key(base_token.clone(), quote_token.clone());
         require!(!self.pair_map.contains_key(&pair_key), PAIR_EXIST);
