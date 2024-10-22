@@ -4,6 +4,7 @@ use crate::*;
 #[near_bindgen]
 impl GridBotContract {
     /// Change owner. Only can be called by owner.
+    #[payable]
     pub fn set_owner(&mut self, owner_id: AccountId) {
         self.assert_owner();
         self.owner_id = owner_id.clone();
