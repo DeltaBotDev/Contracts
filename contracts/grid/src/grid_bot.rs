@@ -273,13 +273,14 @@ impl GridBotContract {
 
     #[payable]
     pub fn set_min_deposit(&mut self, token: AccountId, min_deposit: U128) {
-        self.assert_owner();
+        assert_one_yocto();
+        require!(env::predecessor_account_id() == self.owner_id || env::predecessor_account_id() == self.operator_id, ERR_NOT_ALLOWED);
         self.deposit_limit_map.insert(&token, &U256C::from(min_deposit.0));
     }
 
     #[payable]
     pub fn storage_deposit(&mut self, token: AccountId, storage_fee: U128) {
-        require!(env::predecessor_account_id() == self.owner_id, ERR_NOT_ALLOWED);
+        require!(env::predecessor_account_id() == self.owner_id || env::predecessor_account_id() == self.operator_id, ERR_NOT_ALLOWED);
         require!(env::attached_deposit() == storage_fee.0, LESS_TOKEN_STORAGE_FEE);
         self.internal_storage_deposit(&env::current_account_id(), &token, storage_fee.0);
     }
