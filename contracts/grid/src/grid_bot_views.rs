@@ -118,4 +118,8 @@ impl GridBotContract {
         }
         return true;
     }
+
+    pub fn query_owner(&self) -> (AccountId, AccountId) {
+        return (self.owner_id.clone(), self.operator_id.clone())
+    }
 }
